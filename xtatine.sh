@@ -53,8 +53,19 @@ LOGO=(
 '╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝   ╚═╝╚═╝  ╚═══╝╚══════╝'
 )
 
+DEV_LOGO=(
+'██╗  ██╗ █████╗ ██╗    ██╗███████╗ █████╗ ██████╗ '
+'██║ ██╔╝██╔══██╗██║    ██║██╔════╝██╔══██╗██╔══██╗'
+'█████╔╝ ███████║██║ █╗ ██║███████╗███████║██████╔╝'
+'██╔═██╗ ██╔══██║██║███╗██║╚════██║██╔══██║██╔══██╗'
+'██║  ██╗██║  ██║╚███╔███╔╝███████║██║  ██║██║  ██║'
+'╚═╝  ╚═╝╚═╝  ╚═╝ ╚══╝╚══╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝'
+)
+
 SCR_W=80
 SCR_H=24
+RESIZED=0
+
 get_size() {
     local sz r c
     sz=$(stty size </dev/tty 2>/dev/null)
@@ -67,8 +78,11 @@ get_size() {
     fi
     [[ "$c" =~ ^[0-9]+$ ]] && (( c > 0 )) || c=${COLUMNS:-80}
     [[ "$r" =~ ^[0-9]+$ ]] && (( r > 0 )) || r=${LINES:-24}
-    SCR_W=$c
-    SCR_H=$r
+    if (( r != SCR_H || c != SCR_W )); then
+        SCR_W=$c
+        SCR_H=$r
+        RESIZED=1
+    fi
 }
 get_size
 trap get_size WINCH
@@ -174,7 +188,7 @@ text_row() {
 
 pause_back() {
     echo
-    printf "  ${CYAN}[ ENTER ]${WHITE} Main Menu   ${YELLOW}[ B ]${WHITE} Back   ${RED}[ 0 ]${WHITE} Exit${RESET}\n"
+    printf "  ${CYAN}[ ENTER ]${WHITE} Back / Main Menu   ${YELLOW}[ B ]${WHITE} Back   ${RED}[ 0 ]${WHITE} Exit${RESET}\n"
     read -r -p "  ➤ " ans
     case "$ans" in
         0) exit_app ;;
@@ -198,50 +212,6 @@ exit_app() {
 MODEL=$(getprop ro.product.model 2>/dev/null)
 [[ -z "$MODEL" ]] && MODEL="Android"
 
-# ---------- DEMON ART (MATCHING IMAGE 1 & 5) ----------
-mapfile -t DEMON <<'DEMONEOF'
-000000000000110000000000011000000001111000000011110000000011000000000000
-000000000001110000000000111000000111111000000111111000000011100000000000
-000000000011110000000011110000011111111000001111111100000011110000000000
-000000011011111000000111110000111111111100011111111110000111110110000000
-000000111111111100011111110011111111111110111111111111001111111111000000
-000000111111111110111111111111111111111111111111111111111111111111000000
-000001111111111111111111111111111111111111111111111111111111111111100000
-000111111111111111111111111111111111111111111111111111111111111111111000
-001111111111111111111111111111111111111111111111111111111111111111111100
-011111111111111111111111111111111111111111111111111111111111111111111110
-011111111111111111111111111111111111111111111111111111111111111111111110
-111111111111111111111111111111111111111111111111111111111111111111111111
-111111111111111111111111111111111111111111111111111111111111111111111111
-011111111111111111111111111111111111111111111111111111111111111111111110
-001111111111111111111111111111111111111111111111111111111111111111111100
-001111111111111111111111111111111111111111111111111111111111111111111100
-001111111110000001111111111111111111111111111111111111111000000111111100
-000111111100000000001111111111111111111111111111111111100000000001111110
-000011111110000000000000111111000000000000111111000000000000000011111110
-000000111111111000000000111110000000000000011111000000000111111111000000
-000000011111111111111111111111111111111111111111111111111111111110000000
-000001111111111111111111111111111111111111111111111111111111111111100000
-000011111101111101111101111101111100001111101111101111101111101111110000
-000000111111111111111111111111111100001111111111111111111111111111000000
-000000000000000000011111111111111000001111111111111111000000000000000000
-000000000000000000011111111111110000000111111111111110000000000000000000
-000000000000000000001111111111100000000011111111111000000000000000000000
-000000000000000000001111111111000000000001111111110000000000000000000000
-000000000000000000001111111110000000000000111111110000000000000000000000
-000000000000000000001111001110000000000000011100111000000000000000000000
-000000000000000000001110000110000000000000011000011100000000000000000000
-DEMONEOF
-
-mapfile -t NAME_ART <<'NAMEEOF'
-██╗  ██╗ █████╗ ██╗    ██╗███████╗ █████╗ ██████╗ 
-██║ ██╔╝██╔══██╗██║    ██║██╔════╝██╔══██╗██╔══██╗
-█████╔╝ ███████║██║ █╗ ██║███████╗███████║██████╔╝
-██╔═██╗ ██╔══██║██║███╗██║╚════██║██╔══██║██╔══██╗
-██║  ██╗██║  ██║╚███╔███╔╝███████║██║  ██║██║  ██║
-╚═╝  ╚═╝╚═╝  ╚═╝ ╚══╝╚══╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝
-NAMEEOF
-
 mapfile -t WAVE_ART <<'WAVEEOF'
       \                                              
                                      .::!!!!!!!!:.   
@@ -255,58 +225,17 @@ mapfile -t WAVE_ART <<'WAVEEOF'
               """"           """"""""                
 WAVEEOF
 
-DEMON_C=()
-build_demon() {
-    local y x row line r prev
-    for ((y=0; y<${#DEMON[@]}; y++)); do
-        row=${DEMON[y]}
-        line=""
-        prev=""
-        r=$(( 115 + (y < 16 ? y : 31 - y) * 8 ))
-        (( r > 255 )) && r=255
-        for ((x=0; x<${#row}; x++)); do
-            if [[ "${row:x:1}" == "1" ]]; then
-                if [[ "$prev" != "on" ]]; then line+="${ESC}[38;2;${r};$(( y % 2 ? 0 : 10 ));0m"; prev="on"; fi
-                line+="¶"
-            elif (( x % 2 == 0 )); then
-                if [[ "$prev" != "dot" ]]; then line+="${ESC}[38;2;85;12;12m"; prev="dot"; fi
-                line+="·"
-            else
-                line+=" "
-            fi
+print_dev_name() {
+    local w pad l
+    w=$(term_width)
+    if (( w >= 50 )); then
+        pad=$(( (w - 50) / 2 ))
+        for l in "${DEV_LOGO[@]}"; do
+            printf '%*s%s%s%s%s\n' "$pad" '' "$PINK" "$BOLD" "$l" "$RESET"
         done
-        DEMON_C[y]="${line}${RESET}"
-    done
-}
-build_demon
-
-print_demon() {
-    local w pad i
-    w=$(term_width)
-    pad=$(( (w - 72) / 2 ))
-    (( pad < 0 )) && pad=0
-    for ((i=0; i<${#DEMON_C[@]}; i++)); do
-        printf '%*s%s\n' "$pad" '' "${DEMON_C[i]}"
-    done
-}
-
-print_name() {
-    local w pad i r g b r1 g1 b1 r2 g2 b2 n=${#NAME_ART[@]}
-    w=$(term_width)
-    read -r r1 g1 b1 <<<"$1"
-    read -r r2 g2 b2 <<<"$2"
-    if (( w < 52 )); then
-        center "➤  K A W S A R" "$BOLD$(printf '\033[38;2;%d;%d;%dm' "$r1" "$g1" "$b1")"
-        return
+    else
+        center "K A W S A R" "$PINK$BOLD"
     fi
-    pad=$(( (w - 50) / 2 ))
-    for ((i=0; i<n; i++)); do
-        r=$(( r1 + (r2 - r1) * i / (n - 1) ))
-        g=$(( g1 + (g2 - g1) * i / (n - 1) ))
-        b=$(( b1 + (b2 - b1) * i / (n - 1) ))
-        printf '%*s\033[1;38;2;%d;%d;%dm%s%s\n' "$pad" '' "$r" "$g" "$b" "${NAME_ART[i]}" "$RESET"
-    done
-    center "➤  KAWSAR  ✦" "$YELLOW$BOLD"
 }
 
 print_art2() {
@@ -368,23 +297,7 @@ header() {
 
 dash_header() {
     clear
-    local w
-    w=$(term_width)
-    if (( SCR_H >= 64 && w >= 72 )); then
-        echo
-        print_demon
-        echo
-        print_name "255 50 50" "255 200 60"
-        echo
-        line
-        center "✦  X T A T I N E  ✦" "$CYAN$BOLD"
-        line
-        status_lines
-        line
-        echo
-    else
-        header
-    fi
+    header
 }
 
 type_text() {
@@ -401,19 +314,15 @@ boot() {
     clear
     printf '\033[?25l'
     echo
-    if (( SCR_H >= 60 && $(term_width) >= 72 )); then
-        print_demon
-        echo
-    fi
-    print_name "255 50 50" "255 200 60"
+    center "X T A T I N E" "$CYAN$BOLD"
     echo
     printf "  ${GREEN}root${WHITE}@${CYAN}xtatine${WHITE}:${BLUE}~${WHITE}# ${RESET}"
-    type_text "./xtatine --init" 0.04
+    type_text "./xtatine --init" 0.03
     echo
     echo
     for s in "${steps[@]}"; do
         printf "  ${DARK}[${YELLOW} .. ${DARK}]${RESET} ${GRAY}%s${RESET}" "$s"
-        sleep 0.14
+        sleep 0.12
         printf "\r  ${DARK}[${GREEN} OK ${DARK}]${RESET} ${WHITE}%s${RESET}\033[K\n" "$s"
     done
     echo
@@ -428,11 +337,11 @@ boot() {
     echo
     echo
     center_rainbow "[ A C C E S S   G R A N T E D ]"
-    sleep 0.6
+    sleep 0.5
     printf '\033[?25h'
 }
 
-# ---------- MATRIX RAIN (5 COMMON COLORS) ----------
+# ---------- MATRIX RAIN (FULL SCREEN + RESIZE SAFE + ALWAYS VISIBLE BACK BAR) ----------
 rain() {
     local speed="$1"; shift
     local -a pal=("$@")
@@ -450,75 +359,84 @@ rain() {
         D3[p]=$(printf '\033[22;38;2;%d;%d;%dm' $((r*20/100)) $((g*20/100)) $((b*20/100)))
     done
 
-    local cols rows hs ncol i y x row ch buf key frame=0 len
+    local cols rows min_r ncol i y x row ch buf key frame=0 len back_msg
     local -a Y=() LEN=() SP=() CM=()
     printf '\033[?25l'
+    RESIZED=1
+
     while true; do
         get_size
-        cols=$SCR_W
-        hs=$SCR_H
-        rows=$hs
-        (( rows < 10 )) && rows=10
-        ncol=$cols
-        CM=()
-        for ((i=0; i<ncol; i++)); do
-            Y[i]=$(( -(RANDOM % rows) ))
-            LEN[i]=$(( 8 + RANDOM % (rows - 3) ))
-            SP[i]=$(( 1 + RANDOM % 2 ))
-        done
-        printf '\033[0m\033[2J'
-
-        while (( cols == SCR_W && hs == SCR_H )); do
-            buf=""
+        if (( RESIZED == 1 )); then
+            RESIZED=0
+            cols=$SCR_W
+            rows=$SCR_H
+            (( cols < 10 )) && cols=10
+            (( rows < 6 )) && rows=6
+            min_r=2
+            ncol=$cols
+            CM=()
+            Y=()
+            LEN=()
+            SP=()
             for ((i=0; i<ncol; i++)); do
-                (( frame % SP[i] )) && continue
-                y=$(( Y[i] + 1 ))
-                Y[i]=$y
-                x=$(( i + 1 ))
-                len=${LEN[i]}
-                p=$(( i % np ))
-
-                if (( y >= 1 && y <= rows )); then
-                    ch=${CHARS:$((RANDOM % nch)):1}
-                    CM[i*rows+y]=$ch
-                    buf+="${ESC}[${y};${x}H${HEAD}${ch}"
-                fi
-                row=$(( y - 1 ))
-                (( row >= 1 && row <= rows )) && buf+="${ESC}[${row};${x}H${L1[p]}${CM[i*rows+row]}"
-                row=$(( y - 2 ))
-                (( row >= 1 && row <= rows )) && buf+="${ESC}[${row};${x}H${L2[p]}${CM[i*rows+row]}"
-                row=$(( y - len + 3 ))
-                (( row >= 1 && row <= rows )) && buf+="${ESC}[${row};${x}H${D1[p]}${CM[i*rows+row]}"
-                row=$(( y - len + 2 ))
-                (( row >= 1 && row <= rows )) && buf+="${ESC}[${row};${x}H${D2[p]}${CM[i*rows+row]}"
-                row=$(( y - len + 1 ))
-                (( row >= 1 && row <= rows )) && buf+="${ESC}[${row};${x}H${D3[p]}${CM[i*rows+row]}"
-                row=$(( y - len ))
-                (( row >= 1 && row <= rows )) && buf+="${ESC}[${row};${x}H "
-
-                if (( y - len > rows )); then
-                    Y[i]=$(( -(RANDOM % (rows / 2 + 1)) ))
-                    LEN[i]=$(( 8 + RANDOM % (rows - 3) ))
-                    SP[i]=$(( 1 + RANDOM % 2 ))
-                fi
+                Y[i]=$(( min_r - (RANDOM % (rows - min_r + 1)) ))
+                LEN[i]=$(( 5 + RANDOM % (rows - min_r + 1) ))
+                SP[i]=$(( 1 + RANDOM % 2 ))
             done
-            if (( frame < 50 )); then
-                buf+="${ESC}[1;1H${ESC}[30;46m XTATINE • Q / B = BACK ${RESET}"
-            elif (( frame == 50 )); then
-                buf+="${ESC}[1;1H${ESC}[0m                         "
+            printf '\033[0m\033[2J\033[H'
+        fi
+
+        buf=""
+        for ((i=0; i<ncol; i++)); do
+            (( frame % SP[i] )) && continue
+            y=$(( Y[i] + 1 ))
+            Y[i]=$y
+            x=$(( i + 1 ))
+            len=${LEN[i]}
+            p=$(( i % np ))
+
+            if (( y >= min_r && y <= rows )); then
+                ch=${CHARS:$((RANDOM % nch)):1}
+                CM[i*rows+y]=$ch
+                buf+="${ESC}[${y};${x}H${HEAD}${ch}"
             fi
-            printf '%s' "$buf"
-            frame=$(( frame + 1 ))
-            if read -rsn1 -t "$speed" key; then
-                case "$key" in
-                    q|Q|b|B) printf '\033[0m\033[?25h'; clear; return ;;
-                esac
+            row=$(( y - 1 ))
+            (( row >= min_r && row <= rows )) && buf+="${ESC}[${row};${x}H${L1[p]}${CM[i*rows+row]}"
+            row=$(( y - 2 ))
+            (( row >= min_r && row <= rows )) && buf+="${ESC}[${row};${x}H${L2[p]}${CM[i*rows+row]}"
+            row=$(( y - len + 3 ))
+            (( row >= min_r && row <= rows )) && buf+="${ESC}[${row};${x}H${D1[p]}${CM[i*rows+row]}"
+            row=$(( y - len + 2 ))
+            (( row >= min_r && row <= rows )) && buf+="${ESC}[${row};${x}H${D2[p]}${CM[i*rows+row]}"
+            row=$(( y - len + 1 ))
+            (( row >= min_r && row <= rows )) && buf+="${ESC}[${row};${x}H${D3[p]}${CM[i*rows+row]}"
+            row=$(( y - len ))
+            (( row >= min_r && row <= rows )) && buf+="${ESC}[${row};${x}H "
+
+            if (( y - len > rows )); then
+                Y[i]=$(( min_r - (RANDOM % ((rows - min_r) / 2 + 1)) ))
+                LEN[i]=$(( 5 + RANDOM % (rows - min_r + 1) ))
+                SP[i]=$(( 1 + RANDOM % 2 ))
             fi
         done
+
+        back_msg=" [ Q / B ] BACK TO MAIN MENU "
+        if (( cols < ${#back_msg} )); then
+            back_msg=" Q/B=BACK "
+        fi
+        buf+="${ESC}[1;1H${ESC}[2K${ESC}[1;30;46m${back_msg}${RESET}"
+        printf '%s' "$buf"
+        frame=$(( frame + 1 ))
+
+        if read -rsn1 -t "$speed" key; then
+            case "$key" in
+                q|Q|b|B) printf '\033[0m\033[?25h'; clear; return ;;
+            esac
+        fi
     done
 }
 
-# ---------- REALISTIC ROTATING EARTH GLOBE (DETAILED CONTINENTS + DUAL COLOR) ----------
+# ---------- FAST 3-COLOR ROTATING EARTH GLOBE ----------
 IFS= read -r -d '' AWK_GLOBE <<'AWKEOF'
 function nrm(d){ while(d>180)d-=360; while(d<-180)d+=360; return d }
 function wrap(d){ d=nrm(d); return d<0?-d:d }
@@ -529,32 +447,24 @@ function in_ell(lat,lon,clat,clon,ry,rx,   dy,dx){
 }
 function land(lat,lon){
   if(lat<-72) return 1
-  # Greenland
   if(in_ell(lat,lon,72,-42,10,16) || in_box(lat,lon,62,78,-52,-25)) return 1
-  # North America & Alaska
   if(in_ell(lat,lon,64,-152,8,15)) return 1
   if(in_ell(lat,lon,58,-102,14,32) || in_box(lat,lon,48,65,-125,-72)) return 1
   if(in_ell(lat,lon,41,-98,13,26) || in_box(lat,lon,28,48,-118,-74)) return 1
   if(in_ell(lat,lon,22,-99,8,10) || in_box(lat,lon,14,26,-105,-86)) return 1
-  # South America
   if(in_ell(lat,lon,-12,-56,22,17) || in_ell(lat,lon,-28,-62,14,10) || in_ell(lat,lon,-44,-68,11,5)) return 1
-  # Europe & UK & Scandinavia
   if(in_ell(lat,lon,54,-2,5,4)) return 1
   if(in_ell(lat,lon,63,16,9,11)) return 1
   if(in_ell(lat,lon,48,14,11,24) || in_box(lat,lon,38,56,-9,35)) return 1
-  # Africa & Madagascar
   if(in_ell(lat,lon,24,14,11,28) || in_box(lat,lon,16,33,-16,35)) return 1
   if(in_ell(lat,lon,4,22,15,19) || in_ell(lat,lon,-18,24,15,13)) return 1
   if(in_ell(lat,lon,-19,47,7,3)) return 1
-  # Middle East & Arabia
   if(in_ell(lat,lon,24,46,10,11) || in_box(lat,lon,15,36,35,56)) return 1
-  # Asia, Russia, India, SE Asia, Japan
   if(in_ell(lat,lon,58,85,15,58) || in_box(lat,lon,48,70,36,165)) return 1
   if(in_ell(lat,lon,36,96,17,28) || in_box(lat,lon,26,46,60,125)) return 1
   if(in_ell(lat,lon,20,78,12,9) || in_ell(lat,lon,12,78,7,5)) return 1
   if(in_ell(lat,lon,15,103,11,7) || in_ell(lat,lon,2,102,5,4)) return 1
   if(in_ell(lat,lon,36,138,7,4)) return 1
-  # Maritime SE Asia & Australia & NZ
   if(in_ell(lat,lon,-2,114,5,15) || in_ell(lat,lon,-6,144,6,8)) return 1
   if(in_ell(lat,lon,-25,134,13,20) || in_box(lat,lon,-34,-14,115,150)) return 1
   if(in_ell(lat,lon,-41,173,6,3)) return 1
@@ -579,7 +489,11 @@ BEGIN{
       if(land(lat,lon)){
         ix=int((nz^0.45)*(nr-0.001)); ch=substr(ramp,ix+1,1)
         lit=0.45+0.55*nz
-        R=int(lr*lit); G=int(lg*lit); B=int(lb*lit)
+        if(nz>0.72){
+          R=int(hr*lit); G=int(hg*lit); B=int(hb*lit)
+        } else {
+          R=int(lr*lit); G=int(lg*lit); B=int(lb*lit)
+        }
       } else if(h%4!=0){
         ix=int(nz*7.99); ch=substr(oramp,ix+1,1)
         lit=0.35+0.65*nz
@@ -601,17 +515,17 @@ globe_header() {
     tc=$(printf '\033[1;38;2;%d;%d;%dm' "$r" "$g" "$b")
     sp=$(spaced "$title")
     printf '\033[0m\033[2J\033[H'
-    if (( SCR_H >= 48 )); then
+    if (( SCR_H >= 44 )); then
         echo
         print_art2
-        print_name "0 230 255" "90 255 130"
+        center "X T A T I N E" "$CYAN$BOLD"
         echo
         center "◢◤  $sp  ◥◣" "$tc"
-        center "░▒▓ ORBITAL EARTH SCAN IN PROGRESS ▓▒░" "$GRAY"
-        GH=21
+        center "░▒▓ ORBITAL SCAN SYSTEM ACTIVE ▓▒░" "$GRAY"
+        GH=16
     else
         printf '\033[2;1H'
-        center "➤  KAWSAR  •  $sp" "$tc"
+        center "X T A T I N E  •  $sp" "$tc"
         GH=3
     fi
 }
@@ -623,32 +537,42 @@ globe() {
         pause_back
         return
     fi
-    local c1="$1" c2="$2" title="$3" lr lg lb wr wg wb
-    local rot=0 Rr top off hs=0 ws=0 fr avail
+    local c1="$1" c2="$2" c3="$3" title="$4"
+    local lr lg lb wr wg wb hr hg hb
+    local rot=0 Rr top off fr avail
     read -r lr lg lb <<<"$c1"
     read -r wr wg wb <<<"$c2"
+    read -r hr hg hb <<<"$c3"
     printf '\033[?25l'
+    RESIZED=1
+
     while true; do
         get_size
-        if (( hs != SCR_H || ws != SCR_W )); then
-            hs=$SCR_H; ws=$SCR_W
+        if (( RESIZED == 1 )); then
+            RESIZED=0
             globe_header "$title" "$lr" "$lg" "$lb"
         fi
-        avail=$(( SCR_H - GH - 2 ))
+        avail=$(( SCR_H - GH - 3 ))
         Rr=$(( (avail - 1) / 2 ))
         (( Rr > 32 )) && Rr=32
         (( Rr * 4 + 1 > SCR_W )) && Rr=$(( (SCR_W - 1) / 4 ))
-        (( Rr < 4 )) && Rr=4
+        (( Rr < 3 )) && Rr=3
         off=$(( (SCR_W - (4 * Rr + 1)) / 2 + 1 ))
         (( off < 1 )) && off=1
         top=$(( GH + 2 ))
         fr=$(awk -v Rr="$Rr" -v top="$top" -v off="$off" -v rot="$rot" \
-                 -v lr="$lr" -v lg="$lg" -v lb="$lb" -v wr="$wr" -v wg="$wg" -v wb="$wb" "$AWK_GLOBE")
+                 -v lr="$lr" -v lg="$lg" -v lb="$lb" \
+                 -v wr="$wr" -v wg="$wg" -v wb="$wb" \
+                 -v hr="$hr" -v hg="$hg" -v hb="$hb" "$AWK_GLOBE")
         printf '%s' "$fr"
-        printf '\033[1;1H\033[30;46m Q / B = BACK \033[0m'
-        printf '\033[%d;1H\033[2K%s TARGET: EARTH  %sROT: %03d°%s' "$SCR_H" "$GREEN" "$CYAN" "$rot" "$RESET"
-        rot=$(( (rot + 3) % 360 ))
-        if read -rsn1 -t 0.02 key; then
+        printf '\033[1;1H\033[30;46m [ Q / B ] BACK \033[0m'
+        if (( SCR_H >= 2 )); then
+            printf '\033[%d;1H\033[2K%s TARGET: EARTH  %sROT: %03d°  %s[ Q / B ] BACK TO MENU%s' \
+                $(( SCR_H - 1 )) "$GREEN" "$CYAN" "$rot" "$YELLOW" "$RESET"
+        fi
+        printf '\033[%d;1H\033[2K%s Press Q or B to go back%s' "$SCR_H" "$WHITE" "$RESET"
+        rot=$(( (rot + 8) % 360 ))
+        if read -rsn1 -t 0.01 key; then
             case "$key" in
                 q|Q|b|B) printf '\033[0m\033[?25h'; clear; return ;;
             esac
@@ -656,7 +580,7 @@ globe() {
     done
 }
 
-# ---------- BIG DIGITS ----------
+# ---------- BIG DIGITS (SINGLE GREEN FOR DIGITS + DISTINCT COLOR FOR ':') ----------
 declare -A F
 F[0]="███|█ █|█ █|█ █|███"
 F[1]=" █ |██ | █ | █ |███"
@@ -671,17 +595,27 @@ F[9]="███|█ █|███|  █|███"
 F[':']=" |█| |█| "
 
 big_time() {
-    local t="$1" r i c line
+    local t="$1" r i c w pad out plain
     local -a parts
-    local -a RC=("$CYAN" "$SKY" "$BLUE" "$PURPLE" "$PINK")
+    local COLON_COLOR="$YELLOW$BOLD"
+    local DIGIT_COLOR="$GREEN$BOLD"
+    w=$(term_width)
     for r in 0 1 2 3 4; do
-        line=""
+        plain=""
+        out=""
         for ((i=0; i<${#t}; i++)); do
             c="${t:i:1}"
             IFS='|' read -ra parts <<<"${F[$c]}"
-            line+="${parts[r]} "
+            plain+="${parts[r]} "
+            if [[ "$c" == ":" ]]; then
+                out+="${COLON_COLOR}${parts[r]}${RESET} "
+            else
+                out+="${DIGIT_COLOR}${parts[r]}${RESET} "
+            fi
         done
-        center "$line" "$BOLD${RC[r]}"
+        pad=$(( (w - ${#plain}) / 2 ))
+        (( pad < 0 )) && pad=0
+        printf '%*s%s\n' "$pad" '' "$out"
     done
 }
 
@@ -722,7 +656,7 @@ world_clock() {
         done
         box_bottom "$CYAN"
         echo
-        printf "  ${YELLOW}Q / B${WHITE} Back to Main Menu${RESET}\033[K\n"
+        printf "  ${YELLOW}[ Q / B ]${WHITE} Back to Main Menu${RESET}\033[K\n"
         printf '\033[J'
         if read -r -s -n 1 -t 1 key; then
             [[ "$key" == "q" || "$key" == "Q" || "$key" == "b" || "$key" == "B" ]] && break
@@ -799,7 +733,7 @@ battery_info() {
 # ---------- UTILITY 5: DEVELOPER (KAWSAR) ----------
 developer() {
     header
-    print_name "255 80 190" "80 200 255"
+    print_dev_name
     echo
     center "◢◤  D E V E L O P E R   Z O N E  ◥◣" "$PINK$BOLD"
     echo
@@ -842,10 +776,10 @@ main_menu() {
         box_bottom "$GREEN"
         echo
 
-        box_top "$CYAN" "◆ ROTATING GLOBE (3 DUAL-COLOR)"
-        box_row 6 "$TEAL"   "Cyber Earth       ▸ Green + Blue"   "$CYAN"
-        box_row 7 "$LAV"    "Nebula Globe      ▸ Purple + Blue"  "$CYAN"
-        box_row 8 "$ORANGE" "Solar Core        ▸ Gold + Red"     "$CYAN"
+        box_top "$CYAN" "◆ ROTATING GLOBE (3 TRI-COLOR)"
+        box_row 6 "$TEAL"   "Cyber Earth       ▸ Green + Blue + Cyan"    "$CYAN"
+        box_row 7 "$LAV"    "Nebula Globe      ▸ Purple + Blue + Pink"   "$CYAN"
+        box_row 8 "$ORANGE" "Solar Core        ▸ Gold + Red + Yellow"    "$CYAN"
         box_bottom "$CYAN"
 
         section_divider "◆◆◆  U T I L I T Y   &   D E V   M O D U L E S  ◆◆◆"
@@ -868,9 +802,9 @@ main_menu() {
             3|03) rain 0.04 "70 160 255" ;;
             4|04) rain 0.04 "190 90 255" ;;
             5|05) rain 0.04 "255 215 50" ;;
-            6|06) globe "40 255 120"  "30 120 255" "CYBER EARTH" ;;
-            7|07) globe "190 90 255"  "55 125 255" "NEBULA GLOBE" ;;
-            8|08) globe "255 205 50"  "235 45 65"  "SOLAR CORE" ;;
+            6|06) globe "40 255 120"  "30 120 255"  "120 255 240" "CYBER EARTH" ;;
+            7|07) globe "190 90 255"  "55 125 255"  "255 100 200" "NEBULA GLOBE" ;;
+            8|08) globe "255 170 40"  "225 45 65"   "255 235 80"  "SOLAR CORE" ;;
             9|09) world_clock ;;
             10) system_info ;;
             11) network_info ;;
