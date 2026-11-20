@@ -99,7 +99,6 @@ trap cleanup EXIT
 trap 'cleanup; clear; exit 130' INT TERM
 
 term_width() {
-    refresh_size
     local w=$SCR_W
     (( w < 24 )) && w=24
     (( w > 100 )) && w=100
@@ -266,7 +265,6 @@ print_big_xtatine() {
     fi
 }
 
-# Eye art with Left -> Right Red (255,55,75) to Gold/Yellow (255,215,50) blend
 print_dev_eyes() {
     local w pad i j line len r g b n=${#WAVE_ART[@]}
     w=$(term_width)
@@ -288,7 +286,6 @@ print_dev_eyes() {
     printf '\033[?7h'
 }
 
-# Premium gradient for KAWSAR (Gold -> Rose/Magenta -> Cyan)
 print_dev_name() {
     local w pad i r g b n=${#DEV_LOGO[@]}
     w=$(term_width)
@@ -349,10 +346,9 @@ spaced() {
 }
 
 status_lines() {
-    local w l1 l2
+    local w l1
     w=$(term_width)
     l1="  ● SYSTEM ONLINE │ VERSION ${VERSION} │ TERMUX / ANDROID"
-    l2="  OPERATOR › ${DEVELOPER} │ ${MODEL} │ $(date '+%d %b %Y  %I:%M %p')"
     printf '\033[?7l'
     if (( w >= 54 )); then
         printf "  ${GREEN}● SYSTEM ONLINE${RESET} ${DARK}│${RESET} ${YELLOW}VERSION ${ORANGE}${VERSION}${RESET} ${DARK}│${RESET} ${SKY}TERMUX / ANDROID${RESET}\n"
@@ -665,16 +661,16 @@ globe() {
     done
 }
 
-# ---------- BIG DIGITS (4-ROW + CORAL -> VIOLET -> SKY GRADIENT) ----------
+# ---------- BIG DIGITS (CLEAN 4-ROW GEOMETRIC BLOCKS + CORAL -> VIOLET -> SKY GRADIENT) ----------
 declare -A F
 F[0]="████|█  █|█  █|████"
-F[1]=" ██ |  ██|  ██| ████"
-F[2]="████|  ██|██  |████"
-F[3]="████|  ██|  ██|████"
+F[1]="  ██|  ██|  ██|  ██"
+F[2]="████|   █|█   |████"
+F[3]="████|  ██|   █|████"
 F[4]="█  █|████|   █|   █"
-F[5]="████|██  |   █|████"
-F[6]="████|██  |█  █|████"
-F[7]="████|   █|  ██|  ██"
+F[5]="████|█   |   █|████"
+F[6]="████|█   |████|████"
+F[7]="████|   █|  █ |  █ "
 F[8]="████|████|█  █|████"
 F[9]="████|████|   █|████"
 F[':']="  |██|██|  "
@@ -682,12 +678,11 @@ F[':']="  |██|██|  "
 BIG_CLOCK_ROWS=4
 BT_LINES=()
 CLOCK_ROW=16
-CITY_START_ROW=24
+CITY_START_ROW=25
 
 build_big_time_lines() {
     local t="$1" r i c w pad out plain
     local -a parts
-    # Top-to-bottom blend: Coral Rose (255,95,145) -> Violet (185,95,255) -> Sky Cyan (85,205,255)
     local -a ROW_TINT=(
         $'\033[1;38;2;255;95;145m'
         $'\033[1;38;2;220;90;220m'
@@ -734,7 +729,6 @@ draw_clock_static() {
     header
     center "◆ LIVE WORLD TIME ◆" "$CYAN$BOLD"
     echo
-    # Row 16 is right after: 1(blank)+6(logo)+1(blank)+1(line)+1(title)+1(line)+2(status)+1(line)+1(blank)+1(LIVE WORLD TIME)+1(blank) = 15 lines -> 16
     CLOCK_ROW=16
     for ((r=0; r<BIG_CLOCK_ROWS; r++)); do
         echo
@@ -742,8 +736,8 @@ draw_clock_static() {
     center "$(date '+%p  •  %A, %d %B %Y')" "$SKY"
     echo
     box_top "$CYAN" "◆ GLOBAL CLOCK"
-    # CITY_START_ROW is right below box_top: 16 + 4(clock) + 1(date) + 1(blank) + 1(box_top) = 23 -> 24
-    CITY_START_ROW=$(( CLOCK_ROW + BIG_CLOCK_ROWS + 3 ))
+    # First city row is right below box_top (row 25 on standard layout)
+    CITY_START_ROW=25
 
     set_boxw
     inner=$(( BOXW - 2 ))
