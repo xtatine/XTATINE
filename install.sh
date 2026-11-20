@@ -14,6 +14,31 @@ if [ -z "${PREFIX:-}" ]; then
 fi
 
 clear
+
+# Top emblem from attached image
+mapfile -t INST_ART <<'INSTEOF'
+      \                                              
+                                     .::!!!!!!!!:.   
+   .!!!!!!:.                        .:!!!!!!!!!!!!!!!
+   ~~~~!!!!!!.                  .:!!!!!!!!!!UWWW$$$  
+       :$$NWX!!:            .:!!!!!!XUWW$$$$$$$$$P   
+       $$$$$##WX!:       .<!!!!UW$$$$"  $$$$$$$$#    
+       $$$$$  $$$UX   :!!UW$$$$$$$$$   4$$$$$*       
+       ^$$$B  $$$$\     $$$$$$$$$$$$$   d$$R"        
+         "*$bd$$$$       '*$$$$$$$$$$$o+#"           
+              """"           """"""""                
+INSTEOF
+
+echo
+for i in "${!INST_ART[@]}"; do
+  line="${INST_ART[i]}"
+  lr=$(( 120 - i * 4 )); lg=$(( 110 + i * 8 )); lb=255
+  rr=60; rg=$(( 255 - i * 6 )); rb=$(( 120 - i * 4 ))
+  printf '  \033[1;38;2;%d;%d;%dm%s\033[1;38;2;%d;%d;%dm%s%s\n' \
+    "$lr" "$lg" "$lb" "${line:0:20}" "$rr" "$rg" "$rb" "${line:20}" "$RESET"
+done
+echo
+
 echo -e "${CYAN}╔══════════════════════════════════════╗"
 echo "║          XTATINE INSTALLER           ║"
 echo "║              VERSION 4.0             ║"
