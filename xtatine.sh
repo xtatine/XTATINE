@@ -263,7 +263,6 @@ print_big_xtatine() {
     fi
 }
 
-# Harmonious multi-tone gradient for KAWSAR (Cyan -> Sky -> Purple -> Pink)
 print_dev_name() {
     local w pad i r g b n=${#DEV_LOGO[@]}
     w=$(term_width)
@@ -645,8 +644,8 @@ F[8]="███|█ █|███|█ █|███"
 F[9]="███|█ █|███|  █|███"
 F[':']=" |█| |█| "
 
-big_time() {
-    local t="$1" r i c w pad out plain
+render_big_time_at() {
+    local start_row="$1" t="$2" r i c w pad out plain
     local -a parts
     local -a ROW_TINT=(
         $'\033[1;38;2;0;245;255m'
@@ -673,12 +672,12 @@ big_time() {
         done
         pad=$(( (w - ${#plain}) / 2 ))
         (( pad < 0 )) && pad=0
-        printf '%*s%s\n' "$pad" '' "$out"
+        printf '\033[%d;1H\033[2K%*s%s' "$(( start_row + r ))" "$pad" '' "$out"
     done
     printf '\033[?7h'
 }
 
-# ---------- UTILITY 1: LIVE WORLD TIME ----------
+# ---------- UTILITY 1: LIVE WORLD TIME (ONLY CLOCK UPDATES EVERY SECOND) ----------
 ZI="${PREFIX:-/data/data/com.termux/files/usr}/share/zoneinfo"
 CITIES=("Dhaka|Asia/Dhaka|6" "Dubai|Asia/Dubai|4" "London|Europe/London|0" "New York|America/New_York|-5" "Tokyo|Asia/Tokyo|9")
 
@@ -690,38 +689,83 @@ city_time() {
     fi
 }
 
-world_clock() {
-    local key entry nm tz off res t hh icon i
+draw_clock_static() {
+    local clock_start_row="$1" city_start_row="$2"
+    local entry nm i inner maxv
     local -a CC=("$GREEN" "$CYAN" "$YELLOW" "$PINK" "$PURPLE")
+
+    header
+    center "◆ LIVE WORLD TIME ◆" "$CYAN$BOLD"
+    echo
+    # Reserve 5 lines for big_time
+    echo; echo; echo; echo; echo
+    center "$(date '+%p  •  %A, %d %B %Y')" "$SKY"
+    echo
+    box_top "$CYAN" "◆ GLOBAL CLOCK"
+    set_boxw
+    inner=$(( BOXW - 2 ))
+    maxv=$(( inner - 18 ))
+    (( maxv < 1 )) && maxv=1
+    i=0
+    for entry in "${CITIES[@]}"; do
+        IFS='|' read -r nm _ _ <<<"$entry"
+        printf '  %s│%s %s%-14s%s %s›%s %*s%s│%s\n' \
+            "$CYAN" "$RESET" "${BOLD}${CC[i]}" "$nm" "$RESET" "$DARK" "$RESET" "$maxv" '' "$CYAN" "$RESET"
+        i=$(( i + 1 ))
+    done
+    box_bottom "$CYAN"
+    echo
+    printf "  ${YELLOW}[ Q / B ]${WHITE} Back to Main Menu${RESET}\n"
+}
+
+update_clock_values() {
+    local clock_start_row="$1" city_start_row="$2"
+    local entry nm tz off res t hh icon i val pad inner maxv val_col
+    local -a CC=("$GREEN" "$CYAN" "$YELLOW" "$PINK" "$PURPLE")
+
+    set_boxw
+    inner=$(( BOXW - 2 ))
+    maxv=$(( inner - 18 ))
+    (( maxv < 1 )) && maxv=1
+    val_col=$(( 2 + 1 + 1 + 14 + 1 + 1 + 1 + 1 ))
+
+    render_big_time_at "$clock_start_row" "$(date '+%I:%M:%S')"
+
+    i=0
+    for entry in "${CITIES[@]}"; do
+        IFS='|' read -r nm tz off <<<"$entry"
+        res=$(city_time "$tz" "$off")
+        t=${res%%|*}
+        hh=${res##*|}
+        if (( 10#$hh >= 6 && 10#$hh < 18 )); then icon="☼"; else icon="☾"; fi
+        val="$t  $icon"
+        val="${val:0:maxv}"
+        pad=$(( maxv - ${#val} ))
+        (( pad < 0 )) && pad=0
+        printf '\033[%d;%dH%s%s%*s%s' "$(( city_start_row + i ))" "$val_col" "$WHITE" "$val" "$pad" '' "$RESET"
+        i=$(( i + 1 ))
+    done
+}
+
+world_clock() {
+    local key clock_start_row city_start_row
     printf '\033[?25l'
     RESIZED=1
+
     while true; do
         refresh_size
         if (( RESIZED == 1 )); then
             RESIZED=0
-            clear
+            # Header lines: 1(blank) + 6(logo) + 1(blank) + 1(line) + 1(title) + 1(line) + 2(status) + 1(line) + 1(blank) + 1(LIVE WORLD TIME) + 1(blank) = 15 lines -> clock starts at row 16
+            clock_start_row=16
+            # After 5 clock lines + 1 blank + 1 date + 1 blank + 1 box_top = 9 lines -> cities start at clock_start_row + 9 = 25
+            city_start_row=$(( clock_start_row + 9 ))
+            draw_clock_static "$clock_start_row" "$city_start_row"
         fi
-        header
-        center "◆ LIVE WORLD TIME ◆" "$CYAN$BOLD"
-        echo
-        big_time "$(date '+%I:%M:%S')"
-        center "$(date '+%p  •  %A, %d %B %Y')" "$SKY"
-        echo
-        box_top "$CYAN" "◆ GLOBAL CLOCK"
-        i=0
-        for entry in "${CITIES[@]}"; do
-            IFS='|' read -r nm tz off <<<"$entry"
-            res=$(city_time "$tz" "$off")
-            t=${res%%|*}
-            hh=${res##*|}
-            if (( 10#$hh >= 6 && 10#$hh < 18 )); then icon="☼"; else icon="☾"; fi
-            kv_row "$nm" "${CC[i]}" "$t  $icon" "$CYAN"
-            i=$(( i + 1 ))
-        done
-        box_bottom "$CYAN"
-        echo
-        printf "  ${YELLOW}[ Q / B ]${WHITE} Back to Main Menu${RESET}\n"
-        if read -r -s -n 1 -t 1 key; then
+
+        update_clock_values "$clock_start_row" "$city_start_row"
+
+        if read -rsn1 -t 1 key; then
             [[ "$key" == "q" || "$key" == "Q" || "$key" == "b" || "$key" == "B" ]] && break
         fi
     done
