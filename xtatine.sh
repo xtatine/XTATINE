@@ -578,46 +578,215 @@ BEGIN{
 }
 AWKEOF
 
-GH=3
-globe_header() {
-    local title="$1" r="$2" g="$3" b="$4" tc sp
-    tc=$(printf '\033[1;38;2;%d;%d;%dm' "$r" "$g" "$b")
-    sp=$(spaced "$title")
-    printf '\033[0m\033[2J\033[H'
-    if (( SCR_H >= 48 )); then
-        echo
-        print_art2
-        echo
-        print_big_xtatine
-        echo
-        center "◢◤  $sp  ◥◣" "$tc"
-        center "░▒▓ ORBITAL SCAN SYSTEM ACTIVE ▓▒░" "$GRAY"
-        GH=22
-    elif (( SCR_H >= 24 )); then
-        echo
-        print_big_xtatine
-        center "◢◤  $sp  ◥◣" "$tc"
-        GH=11
-    else
-        printf '\033[2;1H'
-        center "X T A T I N E  •  $sp" "$tc"
-        GH=3
-    fi
+# ---------- MIXED HUD: RADAR + GLOBE + HACKING STREAM ----------
+IFS= read -r -d '' AWK_MIX_HUD <<'MIXEOF'
+function nrm(d){ while(d>180)d-=360; while(d<-180)d+=360; return d }
+function wrap(d){ d=nrm(d); return d<0?-d:d }
+function in_box(lat,lon,a,b,c,d){ return (lat>=a && lat<=b && lon>=c && lon<=d) }
+function in_ell(lat,lon,clat,clon,ry,rx,   dy,dx){
+  dy=(lat-clat)/ry; dx=wrap(lon-clon)/rx
+  return (dy*dy+dx*dx<=1.0)
 }
+function land(lat,lon){
+  if(lat<-72) return 1
+  if(in_ell(lat,lon,72,-42,10,16) || in_box(lat,lon,62,78,-52,-25)) return 1
+  if(in_ell(lat,lon,64,-152,8,15)) return 1
+  if(in_ell(lat,lon,58,-102,14,32) || in_box(lat,lon,48,65,-125,-72)) return 1
+  if(in_ell(lat,lon,41,-98,13,26) || in_box(lat,lon,28,48,-118,-74)) return 1
+  if(in_ell(lat,lon,22,-99,8,10) || in_box(lat,lon,14,26,-105,-86)) return 1
+  if(in_ell(lat,lon,-12,-56,22,17) || in_ell(lat,lon,-28,-62,14,10) || in_ell(lat,lon,-44,-68,11,5)) return 1
+  if(in_ell(lat,lon,54,-2,5,4)) return 1
+  if(in_ell(lat,lon,63,16,9,11)) return 1
+  if(in_ell(lat,lon,48,14,11,24) || in_box(lat,lon,38,56,-9,35)) return 1
+  if(in_ell(lat,lon,24,14,11,28) || in_box(lat,lon,16,33,-16,35)) return 1
+  if(in_ell(lat,lon,4,22,15,19) || in_ell(lat,lon,-18,24,15,13)) return 1
+  if(in_ell(lat,lon,-19,47,7,3)) return 1
+  if(in_ell(lat,lon,24,46,10,11) || in_box(lat,lon,15,36,35,56)) return 1
+  if(in_ell(lat,lon,58,85,15,58) || in_box(lat,lon,48,70,36,165)) return 1
+  if(in_ell(lat,lon,36,96,17,28) || in_box(lat,lon,26,46,60,125)) return 1
+  if(in_ell(lat,lon,20,78,12,9) || in_ell(lat,lon,12,78,7,5)) return 1
+  if(in_ell(lat,lon,15,103,11,7) || in_ell(lat,lon,2,102,5,4)) return 1
+  if(in_ell(lat,lon,36,138,7,4)) return 1
+  if(in_ell(lat,lon,-2,114,5,15) || in_ell(lat,lon,-6,144,6,8)) return 1
+  if(in_ell(lat,lon,-25,134,13,20) || in_box(lat,lon,-34,-14,115,150)) return 1
+  if(in_ell(lat,lon,-41,173,6,3)) return 1
+  return 0
+}
+function fmt_globe_line(r, Rr, rot,   Rc,ny,c,nx,d,nz,lat,lon,ch,out,col,last){
+  Rc = Rr * 2
+  ny = r / Rr
+  out = ""
+  last = ""
+  for(c=-Rc; c<=Rc; c++){
+    nx = c / Rc
+    d = nx*nx + ny*ny
+    if(d > 1.0){
+      if(last != "D"){ out = out ESC "[38;2;55;70;85m"; last = "D" }
+      out = out " "
+      continue
+    }
+    nz = sqrt(1.0 - d)
+    lat = atan2(-ny, sqrt(1.0 - ny*ny)) * 180.0 / PI
+    lon = nrm(atan2(nx, nz) * 180.0 / PI - rot)
+    if(land(lat, lon)){
+      ch = (nz > 0.70) ? "#" : ((nz > 0.35) ? "+" : ":")
+      col = (nz > 0.70) ? ESC "[1;38;2;80;255;160m" : ESC "[38;2;0;210;120m"
+    } else {
+      ch = "."
+      col = ESC "[38;2;45;135;255m"
+    }
+    if(col != last){ out = out col; last = col }
+    out = out ch
+  }
+  return out ESC "[0m"
+}
+function fmt_radar_line(r, Rr, ang,   Rc,ny,c,nx,dist,theta,diff,ch,out,col,last){
+  Rc = Rr * 2
+  ny = r / Rr
+  out = ""
+  last = ""
+  for(c=-Rc; c<=Rc; c++){
+    nx = c / Rc
+    dist = sqrt(nx*nx + ny*ny)
+    if(dist > 1.0){
+      out = out " "
+      continue
+    }
+    theta = (atan2(ny, nx) * 180.0 / PI + 360.0) % 360.0
+    diff = (ang - theta + 360.0) % 360.0
+    if(diff < 16.0){
+      ch = (dist < 0.25) ? "+" : ((diff < 5.0) ? "*" : "/")
+      col = ESC "[1;38;2;120;255;120m"
+    } else if(diff < 55.0){
+      ch = "."
+      col = ESC "[38;2;30;175;75m"
+    } else if(dist > 0.94 || (dist > 0.62 && dist < 0.67) || (dist > 0.30 && dist < 0.35)){
+      ch = "."
+      col = ESC "[38;2;25;110;55m"
+    } else if(r == 0 || c == 0){
+      ch = (r == 0 && c == 0) ? "O" : "+"
+      col = ESC "[38;2;35;125;65m"
+    } else {
+      ch = " "
+      col = ""
+    }
+    if(col != "" && col != last){ out = out col; last = col }
+    out = out ch
+  }
+  return out ESC "[0m"
+}
+BEGIN{
+  PI = 3.14159265358979
+  ESC = sprintf("%c", 27)
+  logs[0] = "[SCAN] NET-IF0 UP -> 10.0.2.15"
+  logs[1] = "[AUTH] SSH RSA-4096 KEY VERIFIED"
+  logs[2] = "[PROC] KERNEL SCHEDULER ACTIVE"
+  logs[3] = "[PKT ] SYN/ACK TRACE -> 1.1.1.1"
+  logs[4] = "[MEM ] SLAB ALLOCATOR NOMINAL"
+  logs[5] = "[CRYPTO] AES-256-GCM CHANNEL OK"
+  logs[6] = "[GRID] TELEMETRY SYNC [100%]"
+  logs[7] = "[ROOT] SHELL SANDBOX ISOLATED"
+  logs[8] = "[PORT] SOCKET 8080 LISTEN MODE"
+  logs[9] = "[NODE] PEER LATENCY 14.2ms"
+  nlogs = 10
 
-globe() {
+  printf "%s[1;1H%s[2K%s[1;30;46m [ Q / B ] BACK TO MAIN MENU %s[0m", ESC, ESC, ESC, ESC
+
+  if(W >= 76 && H >= 16){
+    box_h = H - 3
+    (( box_h < 9 )) && box_h = 9
+    half_w = int((W - 4) / 2)
+    (( half_w < 34 )) && half_w = 34
+    right_x = half_w + 4
+    right_w = W - right_x - 1
+    (( right_w < 24 )) && right_w = 24
+
+    top_h = int((box_h - 3) / 2)
+    (( top_h < 4 )) && top_h = 4
+    bot_h = box_h - 3 - top_h
+    (( bot_h < 4 )) && bot_h = 4
+
+    # Top-left: Rotating Globe
+    printf "%s[2;2H%s[1;38;2;0;255;200m+-[ GLOBE ROT:%03d° ]-+%s[0m", ESC, ESC, rot, ESC
+    Rr_g = int((top_h - 1) / 2)
+    (( Rr_g < 1 )) && Rr_g = 1
+    for(r=-Rr_g; r<=Rr_g; r++){
+      row_idx = 3 + (r + Rr_g)
+      if(row_idx < 2 + top_h){
+        printf "%s[%d;3H%s", ESC, row_idx, fmt_globe_line(r, Rr_g, rot)
+      }
+    }
+
+    # Bottom-left: Sweeping Radar
+    rad_top = 2 + top_h
+    printf "%s[%d;2H%s[1;38;2;80;255;120m+-[ RADAR SWEEP:%03d° ]-+%s[0m", ESC, rad_top, ESC, ang, ESC
+    Rr_r = int((bot_h - 1) / 2)
+    (( Rr_r < 1 )) && Rr_r = 1
+    for(r=-Rr_r; r<=Rr_r; r++){
+      row_idx = rad_top + 1 + (r + Rr_r)
+      if(row_idx < rad_top + bot_h){
+        printf "%s[%d;3H%s", ESC, row_idx, fmt_radar_line(r, Rr_r, ang)
+      }
+    }
+
+    # Right panel: Hacking / System Log Stream
+    printf "%s[2;%dH%s[1;38;2;200;110;255m+-[ CYBER LOG STREAM ]-+%s[0m", ESC, right_x, ESC, ESC
+    max_log_rows = box_h - 2
+    for(i=0; i<max_log_rows; i++){
+      idx = (frame + i) % nlogs
+      line_str = logs[idx]
+      if(length(line_str) > right_w) line_str = substr(line_str, 1, right_w)
+      if(i == max_log_rows - 1){
+        col_s = ESC "[1;38;2;0;255;255m"
+      } else if(i % 2 == 0){
+        col_s = ESC "[38;2;90;255;130m"
+      } else {
+        col_s = ESC "[38;2;150;220;160m"
+      }
+      printf "%s[%d;%dH%s%-*s%s[0m", ESC, 3 + i, right_x + 1, col_s, right_w, line_str, ESC
+    }
+  } else {
+    # Compact / Portrait layout for narrow Termux screens
+    Rr = int((H - 13) / 4)
+    (( Rr > 5 )) && Rr = 5
+    (( Rr < 2 )) && Rr = 2
+
+    printf "%s[2;2H%s[1;38;2;0;255;200m[ GLOBE %03d° ]   [ RADAR %03d° ]%s[0m", ESC, ESC, rot, ang, ESC
+    g_off = 3
+    r_off = g_off + (4 * Rr + 2)
+    (( r_off < 12 )) && r_off = 12
+    if(r_off + (4 * Rr + 2) > H) r_off = 4 + (4 * Rr + 1)
+
+    for(r=-Rr; r<=Rr; r++){
+      printf "%s[%d;%dH%s", ESC, 3 + (r + Rr), g_off, fmt_globe_line(r, Rr, rot)
+      printf "%s[%d;%dH%s", ESC, 3 + (r + Rr), r_off, fmt_radar_line(r, Rr, ang)
+    }
+
+    log_start = 3 + (2 * Rr + 1)
+    printf "%s[%d;2H%s[1;38;2;200;110;255m--- CYBER STREAM ---%s[0m", ESC, log_start, ESC, ESC
+    avail_l = H - log_start - 2
+    (( avail_l < 1 )) && avail_l = 1
+    for(i=0; i<avail_l; i++){
+      idx = (frame + i) % nlogs
+      line_str = logs[idx]
+      if(length(line_str) > W - 3) line_str = substr(line_str, 1, W - 3)
+      col_s = (i == avail_l - 1) ? ESC "[1;38;2;0;255;255m" : ESC "[38;2;90;255;130m"
+      printf "%s[%d;2H%s%-*s%s[0m", ESC, log_start + 1 + i, col_s, W - 3, line_str, ESC
+    }
+  }
+
+  printf "%s[%d;2H%s[38;2;150;170;185mMODE: MIXED CYBER HUD | Q/B: MENU%s[0m", ESC, H, ESC, ESC
+}
+MIXEOF
+
+mixed_hud() {
     if ! command -v awk >/dev/null 2>&1; then
         header
         printf "  ${YELLOW}awk not found. Run: pkg install gawk${RESET}\n"
         pause_back
         return
     fi
-    local c1="$1" c2="$2" c3="$3" title="$4"
-    local lr lg lb wr wg wb hr hg hb
-    local rot=0 Rr top off fr avail key
-    read -r lr lg lb <<<"$c1"
-    read -r wr wg wb <<<"$c2"
-    read -r hr hg hb <<<"$c3"
+    local rot=0 ang=0 frame=0 key
     printf '\033[?25l'
     RESIZED=1
 
@@ -625,29 +794,16 @@ globe() {
         refresh_size
         if (( RESIZED == 1 )); then
             RESIZED=0
-            globe_header "$title" "$lr" "$lg" "$lb"
+            printf '\033[0m\033[2J\033[H'
         fi
-        avail=$(( SCR_H - GH - 3 ))
-        Rr=$(( (avail - 1) / 2 ))
-        (( Rr > 32 )) && Rr=32
-        (( Rr * 4 + 1 > SCR_W )) && Rr=$(( (SCR_W - 1) / 4 ))
-        (( Rr < 2 )) && Rr=2
-        off=$(( (SCR_W - (4 * Rr + 1)) / 2 + 1 ))
-        (( off < 1 )) && off=1
-        top=$(( GH + 2 ))
-        fr=$(awk -v Rr="$Rr" -v top="$top" -v off="$off" -v rot="$rot" \
-                 -v lr="$lr" -v lg="$lg" -v lb="$lb" \
-                 -v wr="$wr" -v wg="$wg" -v wb="$wb" \
-                 -v hr="$hr" -v hg="$hg" -v hb="$hb" "$AWK_GLOBE" 2>/dev/null)
-        printf '%s' "$fr"
-        printf '\033[1;1H\033[30;46m [ Q / B ] BACK \033[0m'
-        if (( SCR_H >= 2 )); then
-            printf '\033[%d;1H\033[2K%s TARGET: EARTH  %sROT: %03d°  %s[ Q / B ] BACK TO MENU%s' \
-                $(( SCR_H - 1 )) "$GREEN" "$CYAN" "$rot" "$YELLOW" "$RESET"
-        fi
-        printf '\033[%d;1H\033[2K%s Press Q or B to go back%s' "$SCR_H" "$WHITE" "$RESET"
+
+        awk -v W="$SCR_W" -v H="$SCR_H" -v rot="$rot" -v ang="$ang" -v frame="$frame" "$AWK_MIX_HUD" 2>/dev/null
+
         rot=$(( (rot + 8) % 360 ))
-        if read -rsn1 -t 0.01 key; then
+        ang=$(( (ang + 18) % 360 ))
+        frame=$(( frame + 1 ))
+
+        if read -rsn1 -t 0.08 key; then
             case "$key" in
                 q|Q|b|B) printf '\033[0m\033[?25h'; clear; return ;;
             esac
@@ -925,11 +1081,12 @@ main_menu() {
         section_divider "◆◆◆  U T I L I T Y   &   D E V   M O D U L E S  ◆◆◆"
 
         box_top "$PURPLE" "◆ QUICK MODULES"
-        box_row 9  "$CYAN"   "World Time (Live Clock)" "$PURPLE"
-        box_row 10 "$LIME"   "Device Info"             "$PURPLE"
-        box_row 11 "$BLUE"   "Net Status"              "$PURPLE"
-        box_row 12 "$YELLOW" "Power Status"            "$PURPLE"
-        box_row 13 "$PINK"   "Developer · KAWSAR"      "$PURPLE"
+        box_row 9  "$CYAN"   "World Time (Live Clock)"       "$PURPLE"
+        box_row 10 "$LIME"   "Device Info"                   "$PURPLE"
+        box_row 11 "$BLUE"   "Net Status"                    "$PURPLE"
+        box_row 12 "$YELLOW" "Power Status"                  "$PURPLE"
+        box_row 13 "$PINK"   "Developer · KAWSAR"            "$PURPLE"
+        box_row 14 "$MINT"   "Mixed HUD (Radar+Globe+Logs)"  "$PURPLE"
         box_bottom "$PURPLE"
         echo
         printf "  ${RED}${BOLD}[00]${RESET} ${WHITE}Exit${RESET}\n"
@@ -950,9 +1107,10 @@ main_menu() {
             11) network_info ;;
             12) battery_info ;;
             13) developer ;;
+            14) mixed_hud ;;
             0|00) exit_app ;;
             "") ;;
-            *) printf "\n  ${RED}Invalid option. Choose 01–13 or 00.${RESET}\n"; sleep 1 ;;
+            *) printf "\n  ${RED}Invalid option. Choose 01–14 or 00.${RESET}\n"; sleep 1 ;;
         esac
     done
 }
