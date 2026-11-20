@@ -307,7 +307,7 @@ print_art2() {
 }
 
 center_rainbow() {
-    local t="$1" c="$2" w pad
+    local t="$1" w pad
     w=$(term_width)
     if (( ${#t} > w )); then
         t="${t:0:w}"
@@ -631,43 +631,48 @@ globe() {
     done
 }
 
+# ---------- BIG DIGITS (SLIGHTLY WIDER/FLATTER 4-ROW STYLE) ----------
 declare -A F
-F[0]="███|█ █|█ █|█ █|███"
-F[1]=" █ |██ | █ | █ |███"
-F[2]="███|  █|███|█  |███"
-F[3]="███|  █|███|  █|███"
-F[4]="█ █|█ █|███|  █|  █"
-F[5]="███|█  |███|  █|███"
-F[6]="███|█  |███|█ █|███"
-F[7]="███|  █|  █|  █|  █"
-F[8]="███|█ █|███|█ █|███"
-F[9]="███|█ █|███|  █|███"
-F[':']=" |█| |█| "
+F[0]="████|█  █|█  █|████"
+F[1]=" ██ |  ██|  ██| ████"
+F[2]="████|  ██|██  |████"
+F[3]="████|  ██|  ██|████"
+F[4]="█  █|████|   █|   █"
+F[5]="████|██  |   █|████"
+F[6]="████|██  |█  █|████"
+F[7]="████|   █|  ██|  ██"
+F[8]="████|████|█  █|████"
+F[9]="████|████|   █|████"
+F[':']="  |██|██|  "
+
+BIG_CLOCK_ROWS=4
+BT_LINES=()
+CLOCK_ROW=1
+CITY_ROWS=()
 
 build_big_time_lines() {
     local t="$1" r i c w pad out plain
     local -a parts
     local -a ROW_TINT=(
         $'\033[1;38;2;0;245;255m'
-        $'\033[1;38;2;40;225;255m'
-        $'\033[1;38;2;75;210;250m'
-        $'\033[1;38;2;105;235;225m'
-        $'\033[1;38;2;130;255;200m'
+        $'\033[1;38;2;45;220;255m'
+        $'\033[1;38;2;90;235;225m'
+        $'\033[1;38;2;130;255;195m'
     )
     local COLON_TINT=$'\033[1;38;2;160;210;255m'
     w=$(term_width)
     BT_LINES=()
-    for r in 0 1 2 3 4; do
+    for ((r=0; r<BIG_CLOCK_ROWS; r++)); do
         plain=""
         out=""
         for ((i=0; i<${#t}; i++)); do
             c="${t:i:1}"
             IFS='|' read -ra parts <<<"${F[$c]}"
-            plain+="${parts[r]} "
+            plain+="${parts[r]}  "
             if [[ "$c" == ":" ]]; then
-                out+="${COLON_TINT}${parts[r]}${RESET} "
+                out+="${COLON_TINT}${parts[r]}${RESET}  "
             else
-                out+="${ROW_TINT[r]}${parts[r]}${RESET} "
+                out+="${ROW_TINT[r]}${parts[r]}${RESET}  "
             fi
         done
         pad=$(( (w - ${#plain}) / 2 ))
@@ -687,14 +692,30 @@ city_time() {
     fi
 }
 
+get_cursor_row() {
+    local pos row
+    pos=""
+    if [[ -r /dev/tty && -w /dev/tty ]]; then
+        IFS='[;' read -r -s -t 1 -d 'R' _ row _ < <(printf '\033[6n' >/dev/tty) 2>/dev/null || row=""
+    fi
+    if [[ "$row" =~ ^[0-9]+$ ]] && (( row > 0 )); then
+        echo "$row"
+    else
+        echo "1"
+    fi
+}
+
 draw_clock_static() {
-    local entry nm i inner maxv
+    local entry nm i inner maxv r
     local -a CC=("$GREEN" "$CYAN" "$YELLOW" "$PINK" "$PURPLE")
 
     header
     center "◆ LIVE WORLD TIME ◆" "$CYAN$BOLD"
     echo
-    echo; echo; echo; echo; echo
+    CLOCK_ROW=$(get_cursor_row)
+    for ((r=0; r<BIG_CLOCK_ROWS; r++)); do
+        echo
+    done
     center "$(date '+%p  •  %A, %d %B %Y')" "$SKY"
     echo
     box_top "$CYAN" "◆ GLOBAL CLOCK"
@@ -702,9 +723,11 @@ draw_clock_static() {
     inner=$(( BOXW - 2 ))
     maxv=$(( inner - 18 ))
     (( maxv < 1 )) && maxv=1
+    CITY_ROWS=()
     i=0
     for entry in "${CITIES[@]}"; do
         IFS='|' read -r nm _ _ <<<"$entry"
+        CITY_ROWS[i]=$(get_cursor_row)
         printf '  %s│%s %s%-14s%s %s›%s %*s%s│%s\n' \
             "$CYAN" "$RESET" "${BOLD}${CC[i]}" "$nm" "$RESET" "$DARK" "$RESET" "$maxv" '' "$CYAN" "$RESET"
         i=$(( i + 1 ))
@@ -724,8 +747,8 @@ update_clock_values() {
 
     build_big_time_lines "$(date '+%I:%M:%S')"
     printf '\033[?7l'
-    for r in 0 1 2 3 4; do
-        printf '\033[%d;1H\033[2K%s' "$(( 16 + r ))" "${BT_LINES[r]}"
+    for ((r=0; r<BIG_CLOCK_ROWS; r++)); do
+        printf '\033[%d;1H\033[2K%s' "$(( CLOCK_ROW + r ))" "${BT_LINES[r]}"
     done
 
     i=0
@@ -739,7 +762,7 @@ update_clock_values() {
         val="${val:0:maxv}"
         pad=$(( maxv - ${#val} ))
         (( pad < 0 )) && pad=0
-        printf '\033[%d;%dH%s%s%*s%s' "$(( 25 + i ))" "$val_col" "$WHITE" "$val" "$pad" '' "$RESET"
+        printf '\033[%d;%dH%s%s%*s%s' "${CITY_ROWS[i]}" "$val_col" "$WHITE" "$val" "$pad" '' "$RESET"
         i=$(( i + 1 ))
     done
     printf '\033[?7h'
