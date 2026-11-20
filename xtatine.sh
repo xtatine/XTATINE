@@ -1,284 +1,297 @@
 #!/data/data/com.termux/files/usr/bin/bash
+# ==========================================================
+# XTATINE PREMIUM TERMINAL SUITE
+# VERSION 4.0 | DEVELOPER: KAWSAR
+# ==========================================================
 
-# ==============================================
-#              XTATINE PREMIUM
-#                   VERSION 3.0
-# ==============================================
+APP="XTATINE"
+VERSION="4.0"
+DEVELOPER="KAWSAR"
+CHARS='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ@#$%&'
 
-# COLORS
+# True-color palette
 CYAN=$'\033[38;2;0;255;255m'
 GREEN=$'\033[38;2;0;255;100m'
 BLUE=$'\033[38;2;70;150;255m'
 PURPLE=$'\033[38;2;190;90;255m'
+PINK=$'\033[38;2;255;80;190m'
 RED=$'\033[38;2;255;75;75m'
 YELLOW=$'\033[38;2;255;220;50m'
 WHITE=$'\033[1;97m'
-GRAY=$'\033[90m'
+GRAY=$'\033[38;2;130;145;155m'
+DARK=$'\033[38;2;70;85;95m'
 RESET=$'\033[0m'
 BOLD=$'\033[1m'
 
-APP="XTATINE"
-VERSION="3.0"
-CHARS='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ@#$%&'
-
-# TERMINAL SETUP
 export TERM="${TERM:-xterm-256color}"
 
 cleanup() {
-    printf '\033[?25h'
-    printf '\033[0m'
-    clear
+    printf '\033[?25h\033[0m'
+}
+trap cleanup EXIT
+trap 'cleanup; clear; exit 130' INT TERM
+
+term_width() {
+    local w
+    w=$(tput cols 2>/dev/null)
+    [[ "$w" =~ ^[0-9]+$ ]] || w=40
+    (( w < 24 )) && w=24
+    (( w > 76 )) && w=76
+    echo "$w"
 }
 
-trap cleanup EXIT
-trap 'cleanup; exit 130' INT TERM
+line() {
+    local w
+    w=$(term_width)
+    printf -v bar '%*s' "$w" ''
+    printf '%s\n' "${bar// /─}"
+}
 
-pause() {
+center_text() {
+    local text="$1" w pad
+    w=$(term_width)
+    pad=$(( (w - ${#text}) / 2 ))
+    (( pad < 0 )) && pad=0
+    printf '%*s%s\n' "$pad" '' "$text"
+}
+
+pause_back() {
     echo
-    read -r -p "  Press ENTER to continue..."
+    printf "  ${CYAN}[ ENTER ]${WHITE} Main Menu    ${YELLOW}[ B ]${WHITE} Back    ${RED}[ 0 ]${WHITE} Exit${RESET}\n"
+    read -r -p "  Press ENTER or B to continue: " _
+    case "$_" in
+        0) exit_app ;;
+        *) return ;;
+    esac
+}
+
+exit_app() {
+    clear
+    echo
+    center_text "${CYAN}${BOLD}✦ THANK YOU FOR USING XTATINE ✦${RESET}"
+    center_text "${GREEN}Developed with passion by KAWSAR${RESET}"
+    echo
+    exit 0
 }
 
 header() {
     clear
-
+    local w
+    w=$(term_width)
     printf "${CYAN}${BOLD}"
     cat <<'LOGO'
-  ██╗  ██╗████████╗ █████╗ ████████╗██╗███╗   ██╗███████╗
-  ╚██╗██╔╝╚══██╔══╝██╔══██╗╚══██╔══╝██║████╗  ██║██╔════╝
-   ╚███╔╝    ██║   ███████║   ██║   ██║██╔██╗ ██║█████╗
-   ██╔██╗    ██║   ██╔══██║   ██║   ██║██║╚██╗██║██╔══╝
-  ██╔╝ ██╗   ██║   ██║  ██║   ██║   ██║██║ ╚████║███████╗
-  ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝   ╚═╝╚═╝  ╚═══╝╚══════╝
+██╗  ██╗████████╗ █████╗ ████████╗██╗███╗   ██╗███████╗
+╚██╗██╔╝╚══██╔══╝██╔══██╗╚══██╔══╝██║████╗  ██║██╔════╝
+ ╚███╔╝    ██║   ███████║   ██║   ██║██╔██╗ ██║█████╗
+ ██╔██╗    ██║   ██╔══██║   ██║   ██║██║╚██╗██║██╔══╝
+██╔╝ ██╗   ██║   ██║  ██║   ██║   ██║██║ ╚████║███████╗
+╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝   ╚═╝╚═╝  ╚═══╝╚══════╝
 LOGO
     printf "${RESET}"
-
     echo
-    printf "${CYAN}  ╔══════════════════════════════════════════════╗${RESET}\n"
-    printf "${CYAN}  ║          ★  X T A T I N E  ★                 ║${RESET}\n"
-    printf "${CYAN}  ╚══════════════════════════════════════════════╝${RESET}\n"
-
+    line
+    center_text "${CYAN}✦  X T A T I N E  ✦${RESET}"
+    line
+    printf "  ${GREEN}● ONLINE${RESET}  ${DARK}│${RESET} ${WHITE}VERSION ${CYAN}${VERSION}${RESET}  ${DARK}│${RESET} ${BLUE}TERMUX / ANDROID${RESET}\n"
+    printf "  ${GRAY}DESIGNED FOR TERMINAL LOVERS  •  BY ${WHITE}${DEVELOPER}${RESET}\n"
+    line
     echo
-    printf "  ${GREEN}● ONLINE${RESET}  ${GRAY}|${RESET}"
-    printf "  ${WHITE}VERSION:${CYAN} $VERSION ${RESET}"
-    printf " ${GRAY}|${RESET} ${BLUE}TERMUX SYSTEM${RESET}\n"
+}
 
-    echo -e "${GRAY}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+section_title() {
+    local title="$1"
+    echo
+    printf "  ${CYAN}╭"
+    printf '%*s' 3 ''
+    printf " %s " "$title"
+    printf '%*s' 3 ''
+    printf "╮${RESET}\n"
+}
+
+menu_item() {
+    printf "  ${GREEN}[%02d]${RESET} ${WHITE}%s${RESET}\n" "$1" "$2"
 }
 
 rain() {
-    local color="$1"
-    local speed="$2"
-    local rainbow="$3"
-
+    local color="$1" speed="$2" rainbow="$3"
     local cols rows i y ch frame key
-    local -a drops
-    local -a colors
-
-    colors=("$GREEN" "$CYAN" "$BLUE" "$PURPLE" "$RED" "$YELLOW")
-
-    cols=$(tput cols 2>/dev/null || echo 40)
-    rows=$(tput lines 2>/dev/null || echo 20)
-
-    ((cols > 100)) && cols=100
-    ((rows > 45)) && rows=45
-    ((cols < 10)) && cols=40
-    ((rows < 5)) && rows=20
-
-    for ((i=0; i<cols; i++)); do
-        drops[i]=$((RANDOM % rows + 1))
-    done
+    local -a drops colors
+    cols=$(term_width)
+    rows=$(tput lines 2>/dev/null || echo 24)
+    (( rows < 8 )) && rows=8
+    (( rows > 50 )) && rows=50
+    colors=("$GREEN" "$CYAN" "$BLUE" "$PURPLE" "$PINK" "$YELLOW")
+    for ((i=0; i<cols; i++)); do drops[i]=$((RANDOM % rows + 1)); done
 
     clear
     printf '\033[?25l'
-
-    echo -e "${WHITE}  MATRIX RAIN${GRAY} | Press Q to exit${RESET}"
-
+    printf "${CYAN}${BOLD}  XTATINE MATRIX RAIN${RESET}  ${GRAY}• Press Q or B to return${RESET}\n"
     for ((frame=0; frame<100000; frame++)); do
-
         for ((i=0; i<cols; i++)); do
             y=${drops[i]}
             ch=${CHARS:$((RANDOM % ${#CHARS})):1}
-
-            if [[ "$rainbow" == "yes" ]]; then
-                color="${colors[$((i % ${#colors[@]}))]}"
+            [[ "$rainbow" == "yes" ]] && color="${colors[$((i % ${#colors[@]}))]}"
+            printf '\033[%d;%dH%s%s%s' "$y" "$((i+1))" "$WHITE" "$ch" "$RESET"
+            if (( y > 1 )); then
+                printf '\033[%d;%dH%s%s%s' "$((y-1))" "$((i+1))" "$color" "$ch" "$RESET"
             fi
-
-            printf '\033[%d;%dH%s%s%s' \
-                "$y" "$((i+1))" "$WHITE" "$ch" "$RESET"
-
-            if ((y > 1)); then
-                printf '\033[%d;%dH%s%s%s' \
-                    "$((y-1))" "$((i+1))" "$color" "$ch" "$RESET"
-            fi
-
             drops[i]=$((y+1))
-
-            if ((drops[i] > rows)); then
-                drops[i]=1
-            fi
+            (( drops[i] > rows )) && drops[i]=1
         done
-
         sleep "$speed"
-
         if read -r -s -n 1 -t 0.02 key; then
-            if [[ "$key" == "q" || "$key" == "Q" ]]; then
-                break
-            fi
+            [[ "$key" == "q" || "$key" == "Q" || "$key" == "b" || "$key" == "B" ]] && break
         fi
     done
-
     printf '\033[?25h'
-    clear
+    header
 }
 
 digital_clock() {
-    clear
-
+    local key
     while true; do
-        printf '\033[H'
-        printf '\033[J'
-
-        echo -e "${CYAN}"
-        echo "  ╔══════════════════════════════════════╗"
-        echo "  ║          XTATINE DIGITAL CLOCK       ║"
-        echo "  ╚══════════════════════════════════════╝"
-        echo -e "${RESET}"
-
-        printf "\n  ${WHITE}TIME${RESET}\n"
-        printf "  ${CYAN}${BOLD}      %s${RESET}\n" "$(date '+%I:%M:%S %p')"
-
-        printf "\n  ${WHITE}DATE${RESET}\n"
-        printf "  ${GREEN}      %s${RESET}\n" "$(date '+%A, %d %B %Y')"
-
+        header
+        section_title "XTATINE DIGITAL CLOCK"
         echo
-        echo -e "${GRAY}  Press Q to return to menu${RESET}"
-
+        center_text "${GRAY}LIVE DEVICE TIME${RESET}"
+        center_text "${CYAN}${BOLD}$(date '+%I:%M:%S %p')${RESET}"
+        echo
+        center_text "${GREEN}$(date '+%A')${RESET}"
+        center_text "${WHITE}$(date '+%d %B %Y')${RESET}"
+        echo
+        line
+        printf "  ${YELLOW}Q / B${WHITE}  Back to Main Menu${RESET}  ${GRAY}• Refreshes every second${RESET}\n"
         if read -r -s -n 1 -t 1 key; then
-            [[ "$key" == "q" || "$key" == "Q" ]] && break
+            [[ "$key" == "q" || "$key" == "Q" || "$key" == "b" || "$key" == "B" ]] && break
         fi
     done
 }
 
 system_info() {
     header
-
-    echo -e "${CYAN}  [ SYSTEM INFORMATION ]${RESET}"
-    echo
-
-    echo -e "${GREEN}  Device Model:${WHITE} $(getprop ro.product.model 2>/dev/null)"
-    echo -e "${GREEN}  Manufacturer:${WHITE} $(getprop ro.product.manufacturer 2>/dev/null)"
-    echo -e "${GREEN}  Android Version:${WHITE} $(getprop ro.build.version.release 2>/dev/null)"
-    echo -e "${GREEN}  Architecture:${WHITE} $(uname -m)"
-    echo -e "${GREEN}  Kernel:${WHITE} $(uname -r)"
-    echo -e "${GREEN}  Shell:${WHITE} $SHELL"
-    echo -e "${GREEN}  Current Date:${WHITE} $(date)"
-
-    echo
-    echo -e "${CYAN}  [ STORAGE INFORMATION ]${RESET}"
-    df -h "$HOME" 2>/dev/null
-
-    pause
+    section_title "DEVICE OVERVIEW"
+    printf "  ${GREEN}DEVICE MODEL   ${DARK}›${WHITE} %s\n" "$(getprop ro.product.model 2>/dev/null || echo Unknown)"
+    printf "  ${GREEN}MANUFACTURER   ${DARK}›${WHITE} %s\n" "$(getprop ro.product.manufacturer 2>/dev/null || echo Unknown)"
+    printf "  ${GREEN}ANDROID        ${DARK}›${WHITE} %s\n" "$(getprop ro.build.version.release 2>/dev/null || echo Unknown)"
+    printf "  ${GREEN}ARCHITECTURE   ${DARK}›${WHITE} %s\n" "$(uname -m 2>/dev/null)"
+    printf "  ${GREEN}KERNEL         ${DARK}›${WHITE} %s\n" "$(uname -r 2>/dev/null)"
+    printf "  ${GREEN}SHELL          ${DARK}›${WHITE} %s\n" "${SHELL:-bash}"
+    section_title "STORAGE"
+    df -h "$HOME" 2>/dev/null | awk 'NR==1 || NR==2 {print "  " $0}'
+    pause_back
 }
 
 custom_banner() {
     header
-
-    echo -e "${CYAN}  [ CUSTOM TEXT BANNER ]${RESET}"
+    section_title "CUSTOM TEXT BANNER"
     echo
-
     read -r -p "  Enter your text: " msg
-
     echo
-    printf "${CYAN}  ╔══════════════════════════════════════════╗\n"
-    printf "  ║ %-40.40s ║\n" "$msg"
-    printf "  ╚══════════════════════════════════════════╝${RESET}\n"
-
-    pause
+    printf "  ${CYAN}╔"
+    printf '%*s' 3 ''
+    printf " XTATINE MESSAGE "
+    printf '%*s' 3 ''
+    printf "╗${RESET}\n"
+    printf "  ${CYAN}║${WHITE} %-*.*s ${CYAN}║${RESET}\n" "$(( $(term_width) - 6 ))" "$(( $(term_width) - 6 ))" "$msg"
+    printf "  ${CYAN}╚"
+    printf '%*s' $(( $(term_width) - 4 )) ''
+    printf "╝${RESET}\n"
+    pause_back
 }
 
 network_info() {
     header
-
-    echo -e "${CYAN}  [ NETWORK INFORMATION ]${RESET}"
+    section_title "NETWORK STATUS"
     echo
+    printf "  ${GREEN}HOSTNAME       ${DARK}›${WHITE} %s\n" "$(hostname 2>/dev/null || echo Unknown)"
+    local ip
+    ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+    [[ -z "$ip" ]] && ip="Not available"
+    printf "  ${GREEN}LOCAL IP       ${DARK}›${WHITE} %s\n" "$ip"
 
-    echo -e "${GREEN}  Hostname:${WHITE} $(hostname 2>/dev/null)"
-    echo -e "${GREEN}  IP Address:${WHITE} $(hostname -I 2>/dev/null || echo 'Not available')"
+    if command -v termux-wifi-connectioninfo >/dev/null 2>&1; then
+        local wifi
+        wifi=$(termux-wifi-connectioninfo 2>/dev/null)
+        local ssid
+        ssid=$(printf '%s' "$wifi" | sed -n 's/.*"ssid"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+        [[ -z "$ssid" ]] && ssid="Unavailable"
+        printf "  ${GREEN}WI-FI NAME     ${DARK}›${WHITE} %s\n" "$ssid"
+    else
+        printf "  ${YELLOW}WI-FI NAME     ${DARK}›${GRAY} Termux:API optional\n"
+    fi
 
     echo
-    echo -e "${GRAY}  Network information depends on your device.${RESET}"
-
-    pause
+    if command -v ping >/dev/null 2>&1 && ping -c 1 -W 2 1.1.1.1 >/dev/null 2>&1; then
+        printf "  ${GREEN}INTERNET       ${DARK}› ${GREEN}CONNECTED${RESET}\n"
+    else
+        printf "  ${RED}INTERNET       ${DARK}› ${RED}NOT CONFIRMED${RESET}\n"
+    fi
+    echo
+    printf "  ${GRAY}Note: public IP and Wi-Fi details may be restricted by Android.${RESET}\n"
+    pause_back
 }
 
 battery_info() {
     header
-
-    echo -e "${CYAN}  [ BATTERY INFORMATION ]${RESET}"
+    section_title "BATTERY HEALTH & STATUS"
     echo
-
     if command -v termux-battery-status >/dev/null 2>&1; then
         termux-battery-status
     else
-        echo -e "${YELLOW}  Termux:API is not installed.${RESET}"
-        echo
-        echo "  Optional setup:"
-        echo "  pkg install termux-api"
-        echo "  Install the Termux:API Android app too."
+        printf "  ${YELLOW}Termux:API is not available.${RESET}\n\n"
+        echo "  To enable battery details:"
+        echo "  1. Install the Termux:API Android app."
+        echo "  2. In Termux run: pkg install termux-api"
+        echo "  3. Reopen XTATINE and select Battery Information."
     fi
-
-    pause
+    pause_back
 }
 
 about() {
     header
-
-    echo -e "${CYAN}  [ ABOUT XTATINE ]${RESET}"
+    section_title "ABOUT XTATINE"
     echo
-    echo -e "${WHITE}  NAME       : ${CYAN}XTATINE"
-    echo -e "${WHITE}  VERSION    : ${GREEN}$VERSION"
-    echo -e "${WHITE}  PLATFORM   : ${BLUE}TERMUX / ANDROID"
-    echo -e "${WHITE}  DESIGN     : ${PURPLE}PREMIUM MATRIX"
-    echo -e "${WHITE}  DEVELOPER  : ${CYAN}KAWSAR"
+    center_text "${CYAN}${BOLD}✦ XTATINE PREMIUM ✦${RESET}"
+    center_text "${GRAY}A colorful terminal experience${RESET}"
     echo
-    echo -e "${GRAY}  Made for terminal lovers.${RESET}"
-    echo -e "${CYAN}  Thank you for using XTATINE!${RESET}"
-
-    pause
+    printf "  ${GREEN}NAME         ${DARK}› ${CYAN}XTATINE${RESET}\n"
+    printf "  ${GREEN}VERSION      ${DARK}› ${WHITE}%s${RESET}\n" "$VERSION"
+    printf "  ${GREEN}PLATFORM     ${DARK}› ${BLUE}TERMUX / ANDROID${RESET}\n"
+    printf "  ${GREEN}VISUAL THEME ${DARK}› ${PURPLE}MATRIX • CYAN • RGB${RESET}\n"
+    printf "  ${GREEN}DEVELOPER    ${DARK}› ${CYAN}${DEVELOPER}${RESET}\n"
+    printf "  ${GREEN}GITHUB       ${DARK}› ${WHITE}github.com/xtatine/XTATINE${RESET}\n"
+    echo
+    line
+    center_text "${YELLOW}BUILT TO MAKE YOUR TERMINAL UNIQUE${RESET}"
+    center_text "${GREEN}Thank you for using XTATINE!${RESET}"
+    pause_back
 }
 
 main_menu() {
+    local choice
     while true; do
-
         header
-
-        echo -e "${CYAN}  ╭──────── MATRIX ANIMATION ─────────╮${RESET}"
-        echo -e "  ${GREEN}[01]${WHITE}  Matrix Rain"
-        echo -e "  ${GREEN}[02]${WHITE}  Fast Matrix Rain"
-        echo -e "  ${BLUE}[03]${WHITE}  Blue Matrix"
-        echo -e "  ${CYAN}[04]${WHITE}  Cyan Matrix"
-        echo -e "  ${PURPLE}[05]${WHITE}  Purple Matrix"
-        echo -e "  ${YELLOW}[06]${WHITE}  Rainbow Matrix"
-        echo -e "${CYAN}  ╰──────────────────────────────────╯${RESET}"
-
+        section_title "MATRIX ANIMATION"
+        menu_item 1 "Matrix Rain"
+        menu_item 2 "Fast Matrix Rain"
+        menu_item 3 "Blue Matrix"
+        menu_item 4 "Cyan Matrix"
+        menu_item 5 "Purple Matrix"
+        menu_item 6 "Rainbow Matrix"
         echo
-        echo -e "${CYAN}  ╭────────── SYSTEM TOOLS ──────────╮${RESET}"
-        echo -e "  ${GREEN}[07]${WHITE}  Digital Clock"
-        echo -e "  ${GREEN}[08]${WHITE}  System Information"
-        echo -e "  ${GREEN}[09]${WHITE}  Custom Text Banner"
-        echo -e "  ${GREEN}[10]${WHITE}  Network Information"
-        echo -e "  ${GREEN}[11]${WHITE}  Battery Information"
-        echo -e "  ${GREEN}[12]${WHITE}  About XTATINE"
-        echo -e "${CYAN}  ╰──────────────────────────────────╯${RESET}"
-
+        section_title "SYSTEM TOOLS"
+        menu_item 7 "Digital Clock"
+        menu_item 8 "System Information"
+        menu_item 9 "Custom Text Banner"
+        menu_item 10 "Network Information"
+        menu_item 11 "Battery Information"
+        menu_item 12 "About XTATINE"
         echo
-        echo -e "  ${RED}[00]${WHITE}  Exit"
-
-        echo -e "${GRAY}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-
-        echo -ne "  ${CYAN}${BOLD}Select Option ➤ ${RESET}"
+        line
+        printf "  ${RED}[00]${WHITE} Exit XTATINE${RESET}\n"
+        line
+        printf "  ${CYAN}${BOLD}Select Option ➤ ${RESET}"
         read -r choice
-
         case "$choice" in
             1|01) rain "$GREEN" 0.07 no ;;
             2|02) rain "$GREEN" 0.015 no ;;
@@ -292,18 +305,8 @@ main_menu() {
             10) network_info ;;
             11) battery_info ;;
             12) about ;;
-
-            0|00)
-                clear
-                echo -e "${CYAN}  ★ THANK YOU FOR USING XTATINE ★${RESET}"
-                sleep 1
-                break
-                ;;
-
-            *)
-                echo -e "${RED}  Invalid Option! Please try again.${RESET}"
-                sleep 1
-                ;;
+            0|00) exit_app ;;
+            *) printf "\n  ${RED}Invalid option. Choose 01–12 or 00.${RESET}\n"; sleep 1 ;;
         esac
     done
 }
