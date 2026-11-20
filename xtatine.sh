@@ -286,6 +286,7 @@ print_dev_eyes() {
     printf '\033[?7h'
 }
 
+# Two-color blend for KAWSAR: Pink (255,70,185) -> Purple (155,70,255)
 print_dev_name() {
     local w pad i r g b n=${#DEV_LOGO[@]}
     w=$(term_width)
@@ -293,20 +294,14 @@ print_dev_name() {
         pad=$(( (w - 50) / 2 ))
         printf '\033[?7l'
         for ((i=0; i<n; i++)); do
-            if (( i <= 2 )); then
-                r=255
-                g=$(( 195 - 110 * i / 2 ))
-                b=$(( 55 + 145 * i / 2 ))
-            else
-                r=$(( 255 - 255 * (i - 2) / 3 ))
-                g=$(( 85 + 170 * (i - 2) / 3 ))
-                b=$(( 200 + 55 * (i - 2) / 3 ))
-            fi
+            r=$(( 255 - 100 * i / (n - 1) ))
+            g=70
+            b=$(( 185 + 70 * i / (n - 1) ))
             printf '%*s\033[1;38;2;%d;%d;%dm%s%s\n' "$pad" '' "$r" "$g" "$b" "${DEV_LOGO[i]}" "$RESET"
         done
         printf '\033[?7h'
     else
-        center "K A W S A R" "$SKY$BOLD"
+        center "K A W S A R" "$PINK$BOLD"
     fi
 }
 
@@ -661,18 +656,18 @@ globe() {
     done
 }
 
-# ---------- BIG DIGITS (CLEAN 4-ROW GEOMETRIC BLOCKS + CORAL -> VIOLET -> SKY GRADIENT) ----------
+# ---------- BIG DIGITS (CLEAR 5-COL x 4-ROW + 2-COLOR CORAL-ORANGE -> VIOLET BLEND) ----------
 declare -A F
-F[0]="████|█  █|█  █|████"
-F[1]="  ██|  ██|  ██|  ██"
-F[2]="████|   █|█   |████"
-F[3]="████|  ██|   █|████"
-F[4]="█  █|████|   █|   █"
-F[5]="████|█   |   █|████"
-F[6]="████|█   |████|████"
-F[7]="████|   █|  █ |  █ "
-F[8]="████|████|█  █|████"
-F[9]="████|████|   █|████"
+F[0]="█████|█   █|█   █|█████"
+F[1]="  ██ | ███ |  ██ | ████"
+F[2]="█████|    █|█████|█    "
+F[3]="█████|  ███|    █|█████"
+F[4]="█   █|█████|    █|    █"
+F[5]="█████|█    |█████|    █"
+F[6]="█████|█    |█████|█   █"
+F[7]="█████|    █|  ██ |  ██ "
+F[8]="█████|█████|█   █|█████"
+F[9]="█████|█   █|█████|    █"
 F[':']="  |██|██|  "
 
 BIG_CLOCK_ROWS=4
@@ -683,13 +678,14 @@ CITY_START_ROW=25
 build_big_time_lines() {
     local t="$1" r i c w pad out plain
     local -a parts
+    # Two-color blend from top to bottom: Coral-Orange (255,110,70) -> Electric Violet (165,85,255)
     local -a ROW_TINT=(
-        $'\033[1;38;2;255;95;145m'
-        $'\033[1;38;2;220;90;220m'
-        $'\033[1;38;2;145;140;255m'
-        $'\033[1;38;2;85;205;255m'
+        $'\033[1;38;2;255;110;70m'
+        $'\033[1;38;2;225;102;132m'
+        $'\033[1;38;2;195;93;193m'
+        $'\033[1;38;2;165;85;255m'
     )
-    local COLON_TINT=$'\033[1;38;2;255;190;110m'
+    local COLON_TINT=$'\033[1;38;2;210;98;162m'
     w=$(term_width)
     BT_LINES=()
     for ((r=0; r<BIG_CLOCK_ROWS; r++)); do
@@ -698,11 +694,11 @@ build_big_time_lines() {
         for ((i=0; i<${#t}; i++)); do
             c="${t:i:1}"
             IFS='|' read -ra parts <<<"${F[$c]}"
-            plain+="${parts[r]}  "
+            plain+="${parts[r]} "
             if [[ "$c" == ":" ]]; then
-                out+="${COLON_TINT}${parts[r]}${RESET}  "
+                out+="${COLON_TINT}${parts[r]}${RESET} "
             else
-                out+="${ROW_TINT[r]}${parts[r]}${RESET}  "
+                out+="${ROW_TINT[r]}${parts[r]}${RESET} "
             fi
         done
         pad=$(( (w - ${#plain}) / 2 ))
@@ -736,7 +732,6 @@ draw_clock_static() {
     center "$(date '+%p  •  %A, %d %B %Y')" "$SKY"
     echo
     box_top "$CYAN" "◆ GLOBAL CLOCK"
-    # First city row is right below box_top (row 25 on standard layout)
     CITY_START_ROW=25
 
     set_boxw
