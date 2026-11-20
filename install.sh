@@ -46,8 +46,12 @@ for i in "${!INST_ART[@]}"; do
     "$lr" "$lg" "$lb" "${line:0:20}" "$rr" "$rg" "$rb" "${line:20}" "$RESET"
 done
 echo
-for l in "${BIG_XTATINE[@]}"; do
-  printf '  %s%s%s\n' "$CYAN" "$l" "$RESET"
+n=${#BIG_XTATINE[@]}
+for i in "${!BIG_XTATINE[@]}"; do
+  r=0
+  g=255
+  b=$(( 255 - 155 * i / (n - 1) ))
+  printf '  \033[1;38;2;%d;%d;%dm%s%s\n' "$r" "$g" "$b" "${BIG_XTATINE[i]}" "$RESET"
 done
 echo
 
