@@ -15,7 +15,6 @@ fi
 
 clear
 
-# Top emblem from attached image
 mapfile -t INST_ART <<'INSTEOF'
       \                                              
                                      .::!!!!!!!!:.   
@@ -29,6 +28,15 @@ mapfile -t INST_ART <<'INSTEOF'
               """"           """"""""                
 INSTEOF
 
+BIG_XTATINE=(
+'██╗  ██╗████████╗ █████╗ ████████╗██╗███╗   ██╗███████╗'
+'╚██╗██╔╝╚══██╔══╝██╔══██╗╚══██╔══╝██║████╗  ██║██╔════╝'
+' ╚███╔╝    ██║   ███████║   ██║   ██║██╔██╗ ██║█████╗  '
+' ██╔██╗    ██║   ██╔══██║   ██║   ██║██║╚██╗██║██╔══╝  '
+'██╔╝ ██╗   ██║   ██║  ██║   ██║   ██║██║ ╚████║███████╗'
+'╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝   ╚═╝╚═╝  ╚═══╝╚══════╝'
+)
+
 echo
 for i in "${!INST_ART[@]}"; do
   line="${INST_ART[i]}"
@@ -36,6 +44,10 @@ for i in "${!INST_ART[@]}"; do
   rr=60; rg=$(( 255 - i * 6 )); rb=$(( 120 - i * 4 ))
   printf '  \033[1;38;2;%d;%d;%dm%s\033[1;38;2;%d;%d;%dm%s%s\n' \
     "$lr" "$lg" "$lb" "${line:0:20}" "$rr" "$rg" "$rb" "${line:20}" "$RESET"
+done
+echo
+for l in "${BIG_XTATINE[@]}"; do
+  printf '  %s%s%s\n' "$CYAN" "$l" "$RESET"
 done
 echo
 
