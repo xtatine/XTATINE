@@ -266,6 +266,24 @@ print_big_xtatine() {
     fi
 }
 
+# Eye art with Red -> Gold/Amber premium blend for Developer page
+print_dev_eyes() {
+    local w pad i line r g b n=${#WAVE_ART[@]}
+    w=$(term_width)
+    pad=$(( (w - 53) / 2 ))
+    (( pad < 0 )) && pad=0
+    printf '\033[?7l'
+    for ((i=0; i<n; i++)); do
+        line="${WAVE_ART[i]}"
+        r=255
+        g=$(( 55 + 140 * i / (n > 1 ? n - 1 : 1) ))
+        b=$(( 75 - 20 * i / (n > 1 ? n - 1 : 1) ))
+        printf '%*s\033[1;38;2;%d;%d;%dm%s%s\n' "$pad" '' "$r" "$g" "$b" "$line" "$RESET"
+    done
+    printf '\033[?7h'
+}
+
+# Premium gradient for KAWSAR (Gold -> Rose/Magenta -> Cyan)
 print_dev_name() {
     local w pad i r g b n=${#DEV_LOGO[@]}
     w=$(term_width)
@@ -274,13 +292,13 @@ print_dev_name() {
         printf '\033[?7l'
         for ((i=0; i<n; i++)); do
             if (( i <= 2 )); then
-                r=$(( 0 + 170 * i / 2 ))
-                g=$(( 255 - 110 * i / 2 ))
-                b=255
+                r=255
+                g=$(( 195 - 110 * i / 2 ))
+                b=$(( 55 + 145 * i / 2 ))
             else
-                r=$(( 170 + 85 * (i - 2) / 3 ))
-                g=$(( 145 - 65 * (i - 2) / 3 ))
-                b=$(( 255 - 65 * (i - 2) / 3 ))
+                r=$(( 255 - 255 * (i - 2) / 3 ))
+                g=$(( 85 + 170 * (i - 2) / 3 ))
+                b=$(( 200 + 55 * (i - 2) / 3 ))
             fi
             printf '%*s\033[1;38;2;%d;%d;%dm%s%s\n' "$pad" '' "$r" "$g" "$b" "${DEV_LOGO[i]}" "$RESET"
         done
@@ -631,18 +649,18 @@ globe() {
     done
 }
 
-# ---------- BIG DIGITS (SLIGHTLY WIDER/FLATTER 4-ROW STYLE) ----------
+# ---------- BIG DIGITS (SLIGHTLY WIDER/FLATTER 4-ROW + GREEN -> BLUE GRADIENT) ----------
 declare -A F
-F[0]="████|█  █|█  █|████"
-F[1]=" ██ |  ██|  ██| ████"
-F[2]="████|  ██|██  |████"
-F[3]="████|  ██|  ██|████"
-F[4]="█  █|████|   █|   █"
-F[5]="████|██  |   █|████"
-F[6]="████|██  |█  █|████"
-F[7]="████|   █|  ██|  ██"
-F[8]="████|████|█  █|████"
-F[9]="████|████|   █|████"
+F[0]="█████|█   █|█   █|█████"
+F[1]="  ██ | ███ |  ██ | ████"
+F[2]="█████|   ██|██   |█████"
+F[3]="█████|  ███|   ██|█████"
+F[4]="█   █|█████|    █|    █"
+F[5]="█████|██   |    █|█████"
+F[6]="█████|██   |█   █|█████"
+F[7]="█████|   ██|  ██ | ██  "
+F[8]="█████|█████|█   █|█████"
+F[9]="█████|█████|    █|█████"
 F[':']="  |██|██|  "
 
 BIG_CLOCK_ROWS=4
@@ -653,13 +671,14 @@ CITY_ROWS=()
 build_big_time_lines() {
     local t="$1" r i c w pad out plain
     local -a parts
+    # Top Green (0,255,110) -> Mid Cyan (0,220,235) -> Bottom Blue (55,135,255)
     local -a ROW_TINT=(
-        $'\033[1;38;2;0;245;255m'
-        $'\033[1;38;2;45;220;255m'
-        $'\033[1;38;2;90;235;225m'
-        $'\033[1;38;2;130;255;195m'
+        $'\033[1;38;2;0;255;110m'
+        $'\033[1;38;2;0;235;190m'
+        $'\033[1;38;2;20;190;245m'
+        $'\033[1;38;2;65;135;255m'
     )
-    local COLON_TINT=$'\033[1;38;2;160;210;255m'
+    local COLON_TINT=$'\033[1;38;2;120;245;210m'
     w=$(term_width)
     BT_LINES=()
     for ((r=0; r<BIG_CLOCK_ROWS; r++)); do
@@ -692,33 +711,47 @@ city_time() {
     fi
 }
 
-get_cursor_row() {
-    local pos row
-    pos=""
-    if [[ -r /dev/tty && -w /dev/tty ]]; then
-        IFS='[;' read -r -s -t 1 -d 'R' _ row _ < <(printf '\033[6n' >/dev/tty) 2>/dev/null || row=""
-    fi
-    if [[ "$row" =~ ^[0-9]+$ ]] && (( row > 0 )); then
-        echo "$row"
+# Exact line counter helper so rows never drift even when lines wrap on narrow/zoomed screens
+printed_lines() {
+    local str="$1" w="$2" len=$(( ${#str} ))
+    (( w < 1 )) && w=1
+    if (( len == 0 )); then
+        echo 1
     else
-        echo "1"
+        echo $(( (len + w - 1) / w ))
     fi
 }
 
 draw_clock_static() {
-    local entry nm i inner maxv r
+    local entry nm i inner maxv r cur_row w title_txt date_txt top_txt
     local -a CC=("$GREEN" "$CYAN" "$YELLOW" "$PINK" "$PURPLE")
 
+    w=$(term_width)
     header
-    center "◆ LIVE WORLD TIME ◆" "$CYAN$BOLD"
+    # header prints: 1(blank) + 6(logo) + 1(blank) + 1(line) + center_rainbow + 1(line) + status_lines(2) + 1(line) + 1(blank)
+    cur_row=15
+    title_txt="◆ LIVE WORLD TIME ◆"
+    center "$title_txt" "$CYAN$BOLD"
+    cur_row=$(( cur_row + $(printed_lines "$title_txt" "$w") ))
     echo
-    CLOCK_ROW=$(get_cursor_row)
+    cur_row=$(( cur_row + 1 ))
+
+    CLOCK_ROW=$cur_row
     for ((r=0; r<BIG_CLOCK_ROWS; r++)); do
         echo
+        cur_row=$(( cur_row + 1 ))
     done
-    center "$(date '+%p  •  %A, %d %B %Y')" "$SKY"
+
+    date_txt="$(date '+%p  •  %A, %d %B %Y')"
+    center "$date_txt" "$SKY"
+    cur_row=$(( cur_row + $(printed_lines "$date_txt" "$w") ))
     echo
-    box_top "$CYAN" "◆ GLOBAL CLOCK"
+    cur_row=$(( cur_row + 1 ))
+
+    top_txt="◆ GLOBAL CLOCK"
+    box_top "$CYAN" "$top_txt"
+    cur_row=$(( cur_row + $(printed_lines "  ╭─ $top_txt ─╮" "$w") ))
+
     set_boxw
     inner=$(( BOXW - 2 ))
     maxv=$(( inner - 18 ))
@@ -727,10 +760,10 @@ draw_clock_static() {
     i=0
     for entry in "${CITIES[@]}"; do
         IFS='|' read -r nm _ _ <<<"$entry"
-        CITY_ROWS[i]=$(get_cursor_row)
+        CITY_ROWS[i]=$cur_row
         printf '  %s│%s %s%-14s%s %s›%s %*s%s│%s\n' \
             "$CYAN" "$RESET" "${BOLD}${CC[i]}" "$nm" "$RESET" "$DARK" "$RESET" "$maxv" '' "$CYAN" "$RESET"
-        i=$(( i + 1 ))
+        cur_row=$(( cur_row + 1 ))
     done
     box_bottom "$CYAN"
     echo
@@ -854,6 +887,8 @@ battery_info() {
 
 developer() {
     header
+    print_dev_eyes
+    echo
     print_dev_name
     echo
     center "◢◤  D E V E L O P E R   Z O N E  ◥◣" "$SKY$BOLD"
