@@ -64,17 +64,24 @@ DEV_LOGO=(
 
 SCR_W=80
 SCR_H=24
-RESIZED=0
+RESIZED=1
 
-get_size() {
-    local sz r c
-    sz=$(stty size </dev/tty 2>/dev/null)
-    if [[ "$sz" =~ ^([0-9]+)[[:space:]]+([0-9]+)$ ]]; then
-        r=${BASH_REMATCH[1]}
-        c=${BASH_REMATCH[2]}
-    else
-        r=$(tput lines 2>/dev/null)
-        c=$(tput cols 2>/dev/null)
+# Safe WINCH handler: only sets a flag (no stty/tput inside signal handler)
+on_winch() {
+    RESIZED=1
+}
+trap on_winch WINCH
+
+refresh_size() {
+    local r c line
+    r=""
+    c=""
+    if [[ -r /dev/tty ]]; then
+        line=$(stty size </dev/tty 2>/dev/null) || line=""
+        if [[ "$line" =~ ^([0-9]+)[[:space:]]+([0-9]+)$ ]]; then
+            r=${BASH_REMATCH[1]}
+            c=${BASH_REMATCH[2]}
+        fi
     fi
     [[ "$c" =~ ^[0-9]+$ ]] && (( c > 0 )) || c=${COLUMNS:-80}
     [[ "$r" =~ ^[0-9]+$ ]] && (( r > 0 )) || r=${LINES:-24}
@@ -84,8 +91,7 @@ get_size() {
         RESIZED=1
     fi
 }
-get_size
-trap get_size WINCH
+refresh_size
 
 cleanup() {
     printf '\033[?25h\033[0m'
@@ -94,8 +100,9 @@ trap cleanup EXIT
 trap 'cleanup; clear; exit 130' INT TERM
 
 term_width() {
+    refresh_size
     local w=$SCR_W
-    (( w < 30 )) && w=30
+    (( w < 24 )) && w=24
     (( w > 100 )) && w=100
     echo "$w"
 }
@@ -121,6 +128,9 @@ line() { grad "$(term_width)" "─"; }
 center() {
     local t="$1" c="$2" w pad
     w=$(term_width)
+    if (( ${#t} > w )); then
+        t="${t:0:w}"
+    fi
     pad=$(( (w - ${#t}) / 2 ))
     (( pad < 0 )) && pad=0
     printf '%*s%s%s%s\n' "$pad" '' "$c" "$t" "$RESET"
@@ -137,13 +147,19 @@ rainbow_text() {
 
 BOXW=60
 set_boxw() {
-    BOXW=$(( $(term_width) - 4 ))
+    local w
+    w=$(term_width)
+    BOXW=$(( w - 4 ))
+    (( BOXW < 20 )) && BOXW=20
     (( BOXW > 72 )) && BOXW=72
 }
 
 box_top() {
     local c="$1" t=" $2 " fill
     set_boxw
+    if (( ${#t} > BOXW - 4 )); then
+        t=" ${2:0:BOXW-6} "
+    fi
     fill=$(( BOXW - 3 - ${#t} ))
     (( fill < 0 )) && fill=0
     printf '  %s╭─%s%s%s%s' "$c" "$BOLD" "$t" "$RESET" "$c"
@@ -152,14 +168,19 @@ box_top() {
 }
 
 box_bottom() {
+    set_boxw
     printf '  %s╰' "$1"
     rep '─' "$(( BOXW - 2 ))"
     printf '╯%s\n' "$RESET"
 }
 
 box_row() {
-    local n="$1" c="$2" label="$3" bc="$4" inner pad
+    local n="$1" c="$2" label="$3" bc="$4" inner maxl pad
+    set_boxw
     inner=$(( BOXW - 2 ))
+    maxl=$(( inner - 8 ))
+    (( maxl < 1 )) && maxl=1
+    label="${label:0:maxl}"
     pad=$(( inner - 7 - ${#label} ))
     (( pad < 0 )) && pad=0
     printf '  %s│%s %s[%02d]%s  %s%s%s%*s%s│%s\n' \
@@ -168,17 +189,20 @@ box_row() {
 
 kv_row() {
     local lab="$1" c="$2" val="$3" bc="$4" inner maxv pad
+    set_boxw
     inner=$(( BOXW - 2 ))
     maxv=$(( inner - 18 ))
     (( maxv < 1 )) && maxv=1
     val="${val:0:maxv}"
     pad=$(( maxv - ${#val} ))
+    (( pad < 0 )) && pad=0
     printf '  %s│%s %s%-14s%s %s›%s %s%s%*s%s│%s\n' \
         "$bc" "$RESET" "$BOLD$c" "$lab" "$RESET" "$DARK" "$RESET" "$WHITE" "$val" "$pad" '' "$bc" "$RESET"
 }
 
 text_row() {
     local t="$1" c="$2" bc="$3" inner pad
+    set_boxw
     inner=$(( BOXW - 2 ))
     t="${t:0:inner-2}"
     pad=$(( inner - 1 - ${#t} ))
@@ -189,7 +213,7 @@ text_row() {
 pause_back() {
     echo
     printf "  ${CYAN}[ ENTER ]${WHITE} Back / Main Menu   ${YELLOW}[ B ]${WHITE} Back   ${RED}[ 0 ]${WHITE} Exit${RESET}\n"
-    read -r -p "  ➤ " ans
+    read -r -p "  ➤ " ans || return
     case "$ans" in
         0) exit_app ;;
         *) return ;;
@@ -225,6 +249,19 @@ mapfile -t WAVE_ART <<'WAVEEOF'
               """"           """"""""                
 WAVEEOF
 
+print_big_xtatine() {
+    local w pad l
+    w=$(term_width)
+    if (( w >= 56 )); then
+        pad=$(( (w - 56) / 2 ))
+        for l in "${LOGO[@]}"; do
+            printf '%*s%s%s%s%s\n' "$pad" '' "$CYAN" "$BOLD" "$l" "$RESET"
+        done
+    else
+        center "X T A T I N E" "$CYAN$BOLD"
+    fi
+}
+
 print_dev_name() {
     local w pad l
     w=$(term_width)
@@ -255,6 +292,9 @@ print_art2() {
 center_rainbow() {
     local t="$1" w pad
     w=$(term_width)
+    if (( ${#t} > w )); then
+        t="${t:0:w}"
+    fi
     pad=$(( (w - ${#t}) / 2 ))
     (( pad < 0 )) && pad=0
     printf '%*s' "$pad" ''
@@ -275,17 +315,8 @@ status_lines() {
 
 header() {
     if [[ "$1" == "keep" ]]; then printf '\033[H'; else clear; fi
-    local w pad l
-    w=$(term_width)
     echo
-    if (( w >= 56 )); then
-        pad=$(( (w - 56) / 2 ))
-        for l in "${LOGO[@]}"; do
-            printf '%*s%s%s%s%s\n' "$pad" '' "$CYAN" "$BOLD" "$l" "$RESET"
-        done
-    else
-        center "X T A T I N E" "$CYAN$BOLD"
-    fi
+    print_big_xtatine
     echo
     line
     center_rainbow "◢◤  H A C K E R   T E R M I N A L   S U I T E  ◥◣"
@@ -314,7 +345,7 @@ boot() {
     clear
     printf '\033[?25l'
     echo
-    center "X T A T I N E" "$CYAN$BOLD"
+    print_big_xtatine
     echo
     printf "  ${GREEN}root${WHITE}@${CYAN}xtatine${WHITE}:${BLUE}~${WHITE}# ${RESET}"
     type_text "./xtatine --init" 0.03
@@ -322,7 +353,7 @@ boot() {
     echo
     for s in "${steps[@]}"; do
         printf "  ${DARK}[${YELLOW} .. ${DARK}]${RESET} ${GRAY}%s${RESET}" "$s"
-        sleep 0.12
+        sleep 0.10
         printf "\r  ${DARK}[${GREEN} OK ${DARK}]${RESET} ${WHITE}%s${RESET}\033[K\n" "$s"
     done
     echo
@@ -337,11 +368,11 @@ boot() {
     echo
     echo
     center_rainbow "[ A C C E S S   G R A N T E D ]"
-    sleep 0.5
+    sleep 0.4
     printf '\033[?25h'
 }
 
-# ---------- MATRIX RAIN (FULL SCREEN + RESIZE SAFE + ALWAYS VISIBLE BACK BAR) ----------
+# ---------- MATRIX RAIN (FULL SCREEN + ZOOM/RESIZE SAFE + ALWAYS VISIBLE BACK BAR) ----------
 rain() {
     local speed="$1"; shift
     local -a pal=("$@")
@@ -365,7 +396,7 @@ rain() {
     RESIZED=1
 
     while true; do
-        get_size
+        refresh_size
         if (( RESIZED == 1 )); then
             RESIZED=0
             cols=$SCR_W
@@ -515,14 +546,20 @@ globe_header() {
     tc=$(printf '\033[1;38;2;%d;%d;%dm' "$r" "$g" "$b")
     sp=$(spaced "$title")
     printf '\033[0m\033[2J\033[H'
-    if (( SCR_H >= 44 )); then
+    if (( SCR_H >= 48 )); then
         echo
         print_art2
-        center "X T A T I N E" "$CYAN$BOLD"
+        echo
+        print_big_xtatine
         echo
         center "◢◤  $sp  ◥◣" "$tc"
         center "░▒▓ ORBITAL SCAN SYSTEM ACTIVE ▓▒░" "$GRAY"
-        GH=16
+        GH=22
+    elif (( SCR_H >= 24 )); then
+        echo
+        print_big_xtatine
+        center "◢◤  $sp  ◥◣" "$tc"
+        GH=11
     else
         printf '\033[2;1H'
         center "X T A T I N E  •  $sp" "$tc"
@@ -539,7 +576,7 @@ globe() {
     fi
     local c1="$1" c2="$2" c3="$3" title="$4"
     local lr lg lb wr wg wb hr hg hb
-    local rot=0 Rr top off fr avail
+    local rot=0 Rr top off fr avail key
     read -r lr lg lb <<<"$c1"
     read -r wr wg wb <<<"$c2"
     read -r hr hg hb <<<"$c3"
@@ -547,7 +584,7 @@ globe() {
     RESIZED=1
 
     while true; do
-        get_size
+        refresh_size
         if (( RESIZED == 1 )); then
             RESIZED=0
             globe_header "$title" "$lr" "$lg" "$lb"
@@ -556,14 +593,14 @@ globe() {
         Rr=$(( (avail - 1) / 2 ))
         (( Rr > 32 )) && Rr=32
         (( Rr * 4 + 1 > SCR_W )) && Rr=$(( (SCR_W - 1) / 4 ))
-        (( Rr < 3 )) && Rr=3
+        (( Rr < 2 )) && Rr=2
         off=$(( (SCR_W - (4 * Rr + 1)) / 2 + 1 ))
         (( off < 1 )) && off=1
         top=$(( GH + 2 ))
         fr=$(awk -v Rr="$Rr" -v top="$top" -v off="$off" -v rot="$rot" \
                  -v lr="$lr" -v lg="$lg" -v lb="$lb" \
                  -v wr="$wr" -v wg="$wg" -v wb="$wb" \
-                 -v hr="$hr" -v hg="$hg" -v hb="$hb" "$AWK_GLOBE")
+                 -v hr="$hr" -v hg="$hg" -v hb="$hb" "$AWK_GLOBE" 2>/dev/null)
         printf '%s' "$fr"
         printf '\033[1;1H\033[30;46m [ Q / B ] BACK \033[0m'
         if (( SCR_H >= 2 )); then
