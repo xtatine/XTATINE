@@ -24,7 +24,9 @@ mkdir -p "$PREFIX/bin" || exit 1
 
 TMP="$PREFIX/bin/xtatine.tmp"
 echo -e "${CYAN}[1/3] Downloading XTATINE...${RESET}"
-curl -fL --progress-bar "$URL" -o "$TMP" || { rm -f "$TMP"; echo -e "${RED}Download failed.${RESET}"; exit 1; }
+curl -fsSL --progress-bar "$URL" -o "$TMP" || { rm -f "$TMP"; echo -e "${RED}Download failed.${RESET}"; exit 1; }
+
+sed -i 's/\r$//' "$TMP" 2>/dev/null || true
 
 grep -q 'VERSION="4.0"' "$TMP" || { rm -f "$TMP"; echo -e "${RED}The downloaded file is not XTATINE V4.0.${RESET}"; exit 1; }
 
