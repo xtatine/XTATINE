@@ -66,7 +66,6 @@ SCR_W=80
 SCR_H=24
 RESIZED=1
 
-# Safe WINCH handler: only sets a flag (no stty/tput inside signal handler)
 on_winch() {
     RESIZED=1
 }
@@ -94,7 +93,7 @@ refresh_size() {
 refresh_size
 
 cleanup() {
-    printf '\033[?25h\033[0m'
+    printf '\033[?7h\033[?25h\033[0m'
 }
 trap cleanup EXIT
 trap 'cleanup; clear; exit 130' INT TERM
@@ -254,24 +253,38 @@ print_big_xtatine() {
     w=$(term_width)
     if (( w >= 56 )); then
         pad=$(( (w - 56) / 2 ))
+        printf '\033[?7l'
         for l in "${LOGO[@]}"; do
             printf '%*s%s%s%s%s\n' "$pad" '' "$CYAN" "$BOLD" "$l" "$RESET"
         done
+        printf '\033[?7h'
     else
         center "X T A T I N E" "$CYAN$BOLD"
     fi
 }
 
+# Harmonious multi-tone gradient for KAWSAR (Cyan -> Sky -> Purple -> Pink)
 print_dev_name() {
-    local w pad l
+    local w pad i r g b n=${#DEV_LOGO[@]}
     w=$(term_width)
     if (( w >= 50 )); then
         pad=$(( (w - 50) / 2 ))
-        for l in "${DEV_LOGO[@]}"; do
-            printf '%*s%s%s%s%s\n' "$pad" '' "$PINK" "$BOLD" "$l" "$RESET"
+        printf '\033[?7l'
+        for ((i=0; i<n; i++)); do
+            if (( i <= 2 )); then
+                r=$(( 0 + 170 * i / 2 ))
+                g=$(( 255 - 110 * i / 2 ))
+                b=255
+            else
+                r=$(( 170 + 85 * (i - 2) / 3 ))
+                g=$(( 145 - 65 * (i - 2) / 3 ))
+                b=$(( 255 - 65 * (i - 2) / 3 ))
+            fi
+            printf '%*s\033[1;38;2;%d;%d;%dm%s%s\n' "$pad" '' "$r" "$g" "$b" "${DEV_LOGO[i]}" "$RESET"
         done
+        printf '\033[?7h'
     else
-        center "K A W S A R" "$PINK$BOLD"
+        center "K A W S A R" "$SKY$BOLD"
     fi
 }
 
@@ -280,6 +293,7 @@ print_art2() {
     w=$(term_width)
     pad=$(( (w - 53) / 2 ))
     (( pad < 0 )) && pad=0
+    printf '\033[?7l'
     for ((i=0; i<n; i++)); do
         line="${WAVE_ART[i]}"
         lr=$(( 120 - i * 4 )); lg=$(( 110 + i * 8 )); lb=255
@@ -287,6 +301,7 @@ print_art2() {
         printf '%*s\033[1;38;2;%d;%d;%dm%s\033[1;38;2;%d;%d;%dm%s%s\n' \
             "$pad" '' "$lr" "$lg" "$lb" "${line:0:20}" "$rr" "$rg" "$rb" "${line:20}" "$RESET"
     done
+    printf '\033[?7h'
 }
 
 center_rainbow() {
@@ -310,11 +325,11 @@ spaced() {
 
 status_lines() {
     printf "  ${GREEN}● SYSTEM ONLINE${RESET} ${DARK}│${RESET} ${YELLOW}VERSION ${ORANGE}${VERSION}${RESET} ${DARK}│${RESET} ${SKY}TERMUX / ANDROID${RESET}\n"
-    printf "  ${PINK}OPERATOR${RESET} ${DARK}›${RESET} ${PURPLE}${BOLD}${DEVELOPER}${RESET} ${DARK}│${RESET} ${TEAL}%s${RESET} ${DARK}│${RESET} ${GRAY}%s${RESET}\033[K\n" "$MODEL" "$(date '+%d %b %Y  %I:%M %p')"
+    printf "  ${PINK}OPERATOR${RESET} ${DARK}›${RESET} ${PURPLE}${BOLD}${DEVELOPER}${RESET} ${DARK}│${RESET} ${TEAL}%s${RESET} ${DARK}│${RESET} ${GRAY}%s${RESET}\n" "$MODEL" "$(date '+%d %b %Y  %I:%M %p')"
 }
 
 header() {
-    if [[ "$1" == "keep" ]]; then printf '\033[H'; else clear; fi
+    clear
     echo
     print_big_xtatine
     echo
@@ -327,7 +342,6 @@ header() {
 }
 
 dash_header() {
-    clear
     header
 }
 
@@ -617,7 +631,7 @@ globe() {
     done
 }
 
-# ---------- BIG DIGITS (SINGLE GREEN FOR DIGITS + DISTINCT COLOR FOR ':') ----------
+# ---------- BIG DIGITS (COORDINATED COOL CYAN/AQUA/MINT FAMILY + ACCENT COLON) ----------
 declare -A F
 F[0]="███|█ █|█ █|█ █|███"
 F[1]=" █ |██ | █ | █ |███"
@@ -634,9 +648,16 @@ F[':']=" |█| |█| "
 big_time() {
     local t="$1" r i c w pad out plain
     local -a parts
-    local COLON_COLOR="$YELLOW$BOLD"
-    local DIGIT_COLOR="$GREEN$BOLD"
+    local -a ROW_TINT=(
+        $'\033[1;38;2;0;245;255m'
+        $'\033[1;38;2;40;225;255m'
+        $'\033[1;38;2;75;210;250m'
+        $'\033[1;38;2;105;235;225m'
+        $'\033[1;38;2;130;255;200m'
+    )
+    local COLON_TINT=$'\033[1;38;2;160;210;255m'
     w=$(term_width)
+    printf '\033[?7l'
     for r in 0 1 2 3 4; do
         plain=""
         out=""
@@ -645,15 +666,16 @@ big_time() {
             IFS='|' read -ra parts <<<"${F[$c]}"
             plain+="${parts[r]} "
             if [[ "$c" == ":" ]]; then
-                out+="${COLON_COLOR}${parts[r]}${RESET} "
+                out+="${COLON_TINT}${parts[r]}${RESET} "
             else
-                out+="${DIGIT_COLOR}${parts[r]}${RESET} "
+                out+="${ROW_TINT[r]}${parts[r]}${RESET} "
             fi
         done
         pad=$(( (w - ${#plain}) / 2 ))
         (( pad < 0 )) && pad=0
         printf '%*s%s\n' "$pad" '' "$out"
     done
+    printf '\033[?7h'
 }
 
 # ---------- UTILITY 1: LIVE WORLD TIME ----------
@@ -672,13 +694,18 @@ world_clock() {
     local key entry nm tz off res t hh icon i
     local -a CC=("$GREEN" "$CYAN" "$YELLOW" "$PINK" "$PURPLE")
     printf '\033[?25l'
-    clear
+    RESIZED=1
     while true; do
-        header keep
+        refresh_size
+        if (( RESIZED == 1 )); then
+            RESIZED=0
+            clear
+        fi
+        header
         center "◆ LIVE WORLD TIME ◆" "$CYAN$BOLD"
         echo
         big_time "$(date '+%I:%M:%S')"
-        center "$(date '+%p  •  %A, %d %B %Y')" "$YELLOW"
+        center "$(date '+%p  •  %A, %d %B %Y')" "$SKY"
         echo
         box_top "$CYAN" "◆ GLOBAL CLOCK"
         i=0
@@ -693,13 +720,13 @@ world_clock() {
         done
         box_bottom "$CYAN"
         echo
-        printf "  ${YELLOW}[ Q / B ]${WHITE} Back to Main Menu${RESET}\033[K\n"
-        printf '\033[J'
+        printf "  ${YELLOW}[ Q / B ]${WHITE} Back to Main Menu${RESET}\n"
         if read -r -s -n 1 -t 1 key; then
             [[ "$key" == "q" || "$key" == "Q" || "$key" == "b" || "$key" == "B" ]] && break
         fi
     done
     printf '\033[?25h'
+    clear
 }
 
 # ---------- UTILITY 2: DEVICE INFO ----------
@@ -772,7 +799,7 @@ developer() {
     header
     print_dev_name
     echo
-    center "◢◤  D E V E L O P E R   Z O N E  ◥◣" "$PINK$BOLD"
+    center "◢◤  D E V E L O P E R   Z O N E  ◥◣" "$SKY$BOLD"
     echo
     box_top "$PINK" "◆ DEVELOPER PROFILE"
     kv_row "DEVELOPER" "$CYAN"   "$DEVELOPER" "$PINK"
