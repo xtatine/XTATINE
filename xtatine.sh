@@ -286,7 +286,6 @@ print_dev_eyes() {
     printf '\033[?7h'
 }
 
-# Two-color blend for KAWSAR: Pink (255,70,185) -> Purple (155,70,255)
 print_dev_name() {
     local w pad i r g b n=${#DEV_LOGO[@]}
     w=$(term_width)
@@ -656,33 +655,35 @@ globe() {
     done
 }
 
-# ---------- BIG DIGITS (CLEAR 5-COL x 4-ROW + 2-COLOR CORAL-ORANGE -> VIOLET BLEND) ----------
+# ---------- BIG 6-ROW CLOCK DIGITS (CRISP BOX-DRAWING + 2-COLOR CORAL -> VIOLET BLEND) ----------
 declare -A F
-F[0]="█████|█   █|█   █|█████"
-F[1]="  ██ | ███ |  ██ | ████"
-F[2]="█████|    █|█████|█    "
-F[3]="█████|  ███|    █|█████"
-F[4]="█   █|█████|    █|    █"
-F[5]="█████|█    |█████|    █"
-F[6]="█████|█    |█████|█   █"
-F[7]="█████|    █|  ██ |  ██ "
-F[8]="█████|█████|█   █|█████"
-F[9]="█████|█   █|█████|    █"
-F[':']="  |██|██|  "
+F[0]="╔════╗|║    ║|║    ║|║    ║|║    ║|╚════╝"
+F[1]=" ╔═╗  | ║║   |  ║║  |  ║║  |  ║║  |╔════╗"
+F[2]="╔════╗|     ║|     ║|╔════╝|║     |╚════╝"
+F[3]="╔════╗|     ║|  ╔══╣|     ║|     ║|╚════╝"
+F[4]="║    ║|║    ║|║    ║|╚════╗|     ║|     ║"
+F[5]="╔════╗|║     |║     |╚════╗|     ║|╚════╝"
+F[6]="╔════╗|║     |║     |╔════╗|║    ║|╚════╝"
+F[7]="╔════╗|     ║|    ╔╝|   ╔╝ |  ╔╝  |  ╔╝  "
+F[8]="╔════╗|║    ║|╠════╣|║    ║|║    ║|╚════╝"
+F[9]="╔════╗|║    ║|╚════╣|     ║|     ║|╚════╝"
+F[':']="   | ▄▄ | ▀▀ |   | ▄▄ | ▀▀ "
 
-BIG_CLOCK_ROWS=4
+BIG_CLOCK_ROWS=6
 BT_LINES=()
 CLOCK_ROW=16
-CITY_START_ROW=25
+CITY_START_ROW=27
 
 build_big_time_lines() {
     local t="$1" r i c w pad out plain
     local -a parts
-    # Two-color blend from top to bottom: Coral-Orange (255,110,70) -> Electric Violet (165,85,255)
+    # 2-color smooth gradient top-to-bottom: Coral-Orange (255,110,70) -> Electric Violet (165,85,255)
     local -a ROW_TINT=(
         $'\033[1;38;2;255;110;70m'
-        $'\033[1;38;2;225;102;132m'
-        $'\033[1;38;2;195;93;193m'
+        $'\033[1;38;2;237;105;107m'
+        $'\033[1;38;2;219;100;144m'
+        $'\033[1;38;2;201;95;181m'
+        $'\033[1;38;2;183;90;218m'
         $'\033[1;38;2;165;85;255m'
     )
     local COLON_TINT=$'\033[1;38;2;210;98;162m'
@@ -732,7 +733,8 @@ draw_clock_static() {
     center "$(date '+%p  •  %A, %d %B %Y')" "$SKY"
     echo
     box_top "$CYAN" "◆ GLOBAL CLOCK"
-    CITY_START_ROW=25
+    # 16 + 6(clock rows) + 1(date) + 1(blank) + 1(box_top) = 25 -> first city row is 27
+    CITY_START_ROW=$(( CLOCK_ROW + BIG_CLOCK_ROWS + 5 ))
 
     set_boxw
     inner=$(( BOXW - 2 ))
