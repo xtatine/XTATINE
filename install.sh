@@ -38,19 +38,22 @@ BIG_XTATINE=(
 )
 
 echo
+# Red (255,55,75) -> Warm Gold/Amber (255,195,55) premium blend on eye art
+n_art=${#INST_ART[@]}
 for i in "${!INST_ART[@]}"; do
   line="${INST_ART[i]}"
-  lr=$(( 120 - i * 4 )); lg=$(( 110 + i * 8 )); lb=255
-  rr=60; rg=$(( 255 - i * 6 )); rb=$(( 120 - i * 4 ))
-  printf '  \033[1;38;2;%d;%d;%dm%s\033[1;38;2;%d;%d;%dm%s%s\n' \
-    "$lr" "$lg" "$lb" "${line:0:20}" "$rr" "$rg" "$rb" "${line:20}" "$RESET"
+  r=255
+  g=$(( 55 + 140 * i / (n_art > 1 ? n_art - 1 : 1) ))
+  b=$(( 75 - 20 * i / (n_art > 1 ? n_art - 1 : 1) ))
+  printf '  \033[1;38;2;%d;%d;%dm%s%s\n' "$r" "$g" "$b" "$line" "$RESET"
 done
 echo
-n=${#BIG_XTATINE[@]}
+# Top-to-bottom blend from Cyan (0,255,255) to Green (0,255,100)
+n_logo=${#BIG_XTATINE[@]}
 for i in "${!BIG_XTATINE[@]}"; do
   r=0
   g=255
-  b=$(( 255 - 155 * i / (n - 1) ))
+  b=$(( 255 - 155 * i / (n_logo - 1) ))
   printf '  \033[1;38;2;%d;%d;%dm%s%s\n' "$r" "$g" "$b" "${BIG_XTATINE[i]}" "$RESET"
 done
 echo
