@@ -249,13 +249,16 @@ mapfile -t WAVE_ART <<'WAVEEOF'
 WAVEEOF
 
 print_big_xtatine() {
-    local w pad l
+    local w pad i r g b n=${#LOGO[@]}
     w=$(term_width)
     if (( w >= 56 )); then
         pad=$(( (w - 56) / 2 ))
         printf '\033[?7l'
-        for l in "${LOGO[@]}"; do
-            printf '%*s%s%s%s%s\n' "$pad" '' "$CYAN" "$BOLD" "$l" "$RESET"
+        for ((i=0; i<n; i++)); do
+            r=0
+            g=255
+            b=$(( 255 - 155 * i / (n - 1) ))
+            printf '%*s\033[1;38;2;%d;%d;%dm%s%s\n' "$pad" '' "$r" "$g" "$b" "${LOGO[i]}" "$RESET"
         done
         printf '\033[?7h'
     else
@@ -304,7 +307,7 @@ print_art2() {
 }
 
 center_rainbow() {
-    local t="$1" w pad
+    local t="$1" c="$2" w pad
     w=$(term_width)
     if (( ${#t} > w )); then
         t="${t:0:w}"
@@ -385,7 +388,6 @@ boot() {
     printf '\033[?25h'
 }
 
-# ---------- MATRIX RAIN (FULL SCREEN + ZOOM/RESIZE SAFE + ALWAYS VISIBLE BACK BAR) ----------
 rain() {
     local speed="$1"; shift
     local -a pal=("$@")
@@ -480,7 +482,6 @@ rain() {
     done
 }
 
-# ---------- FAST 3-COLOR ROTATING EARTH GLOBE ----------
 IFS= read -r -d '' AWK_GLOBE <<'AWKEOF'
 function nrm(d){ while(d>180)d-=360; while(d<-180)d+=360; return d }
 function wrap(d){ d=nrm(d); return d<0?-d:d }
@@ -630,7 +631,6 @@ globe() {
     done
 }
 
-# ---------- BIG DIGITS (COORDINATED COOL CYAN/AQUA/MINT FAMILY + ACCENT COLON) ----------
 declare -A F
 F[0]="███|█ █|█ █|█ █|███"
 F[1]=" █ |██ | █ | █ |███"
@@ -644,8 +644,8 @@ F[8]="███|█ █|███|█ █|███"
 F[9]="███|█ █|███|  █|███"
 F[':']=" |█| |█| "
 
-render_big_time_at() {
-    local start_row="$1" t="$2" r i c w pad out plain
+build_big_time_lines() {
+    local t="$1" r i c w pad out plain
     local -a parts
     local -a ROW_TINT=(
         $'\033[1;38;2;0;245;255m'
@@ -656,7 +656,7 @@ render_big_time_at() {
     )
     local COLON_TINT=$'\033[1;38;2;160;210;255m'
     w=$(term_width)
-    printf '\033[?7l'
+    BT_LINES=()
     for r in 0 1 2 3 4; do
         plain=""
         out=""
@@ -672,12 +672,10 @@ render_big_time_at() {
         done
         pad=$(( (w - ${#plain}) / 2 ))
         (( pad < 0 )) && pad=0
-        printf '\033[%d;1H\033[2K%*s%s' "$(( start_row + r ))" "$pad" '' "$out"
+        BT_LINES[r]=$(printf '%*s%s' "$pad" '' "$out")
     done
-    printf '\033[?7h'
 }
 
-# ---------- UTILITY 1: LIVE WORLD TIME (ONLY CLOCK UPDATES EVERY SECOND) ----------
 ZI="${PREFIX:-/data/data/com.termux/files/usr}/share/zoneinfo"
 CITIES=("Dhaka|Asia/Dhaka|6" "Dubai|Asia/Dubai|4" "London|Europe/London|0" "New York|America/New_York|-5" "Tokyo|Asia/Tokyo|9")
 
@@ -690,14 +688,12 @@ city_time() {
 }
 
 draw_clock_static() {
-    local clock_start_row="$1" city_start_row="$2"
     local entry nm i inner maxv
     local -a CC=("$GREEN" "$CYAN" "$YELLOW" "$PINK" "$PURPLE")
 
     header
     center "◆ LIVE WORLD TIME ◆" "$CYAN$BOLD"
     echo
-    # Reserve 5 lines for big_time
     echo; echo; echo; echo; echo
     center "$(date '+%p  •  %A, %d %B %Y')" "$SKY"
     echo
@@ -719,17 +715,18 @@ draw_clock_static() {
 }
 
 update_clock_values() {
-    local clock_start_row="$1" city_start_row="$2"
-    local entry nm tz off res t hh icon i val pad inner maxv val_col
-    local -a CC=("$GREEN" "$CYAN" "$YELLOW" "$PINK" "$PURPLE")
-
+    local entry nm tz off res t hh icon i val pad inner maxv val_col r
     set_boxw
     inner=$(( BOXW - 2 ))
     maxv=$(( inner - 18 ))
     (( maxv < 1 )) && maxv=1
     val_col=$(( 2 + 1 + 1 + 14 + 1 + 1 + 1 + 1 ))
 
-    render_big_time_at "$clock_start_row" "$(date '+%I:%M:%S')"
+    build_big_time_lines "$(date '+%I:%M:%S')"
+    printf '\033[?7l'
+    for r in 0 1 2 3 4; do
+        printf '\033[%d;1H\033[2K%s' "$(( 16 + r ))" "${BT_LINES[r]}"
+    done
 
     i=0
     for entry in "${CITIES[@]}"; do
@@ -742,13 +739,14 @@ update_clock_values() {
         val="${val:0:maxv}"
         pad=$(( maxv - ${#val} ))
         (( pad < 0 )) && pad=0
-        printf '\033[%d;%dH%s%s%*s%s' "$(( city_start_row + i ))" "$val_col" "$WHITE" "$val" "$pad" '' "$RESET"
+        printf '\033[%d;%dH%s%s%*s%s' "$(( 25 + i ))" "$val_col" "$WHITE" "$val" "$pad" '' "$RESET"
         i=$(( i + 1 ))
     done
+    printf '\033[?7h'
 }
 
 world_clock() {
-    local key clock_start_row city_start_row
+    local key
     printf '\033[?25l'
     RESIZED=1
 
@@ -756,14 +754,10 @@ world_clock() {
         refresh_size
         if (( RESIZED == 1 )); then
             RESIZED=0
-            # Header lines: 1(blank) + 6(logo) + 1(blank) + 1(line) + 1(title) + 1(line) + 2(status) + 1(line) + 1(blank) + 1(LIVE WORLD TIME) + 1(blank) = 15 lines -> clock starts at row 16
-            clock_start_row=16
-            # After 5 clock lines + 1 blank + 1 date + 1 blank + 1 box_top = 9 lines -> cities start at clock_start_row + 9 = 25
-            city_start_row=$(( clock_start_row + 9 ))
-            draw_clock_static "$clock_start_row" "$city_start_row"
+            draw_clock_static
         fi
 
-        update_clock_values "$clock_start_row" "$city_start_row"
+        update_clock_values
 
         if read -rsn1 -t 1 key; then
             [[ "$key" == "q" || "$key" == "Q" || "$key" == "b" || "$key" == "B" ]] && break
@@ -773,7 +767,6 @@ world_clock() {
     clear
 }
 
-# ---------- UTILITY 2: DEVICE INFO ----------
 system_info() {
     header
     local sz us av pc
@@ -794,7 +787,6 @@ system_info() {
     pause_back
 }
 
-# ---------- UTILITY 3: NET STATUS ----------
 network_info() {
     header
     local ip lat
@@ -816,7 +808,6 @@ network_info() {
     pause_back
 }
 
-# ---------- UTILITY 4: POWER STATUS ----------
 battery_info() {
     header
     local bj pct st tp
@@ -838,7 +829,6 @@ battery_info() {
     pause_back
 }
 
-# ---------- UTILITY 5: DEVELOPER (KAWSAR) ----------
 developer() {
     header
     print_dev_name
@@ -857,7 +847,6 @@ developer() {
     pause_back
 }
 
-# ---------- MENUS ----------
 prompt() {
     printf "  ${GREEN}╭─[${WHITE}root${RED}@${CYAN}xtatine${GREEN}]─[${YELLOW}~/%s${GREEN}]${RESET}\n  ${GREEN}╰─${PINK}❯${CYAN}❯${GREEN}❯${RESET} " "$1"
 }
