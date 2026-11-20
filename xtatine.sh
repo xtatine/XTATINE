@@ -132,7 +132,7 @@ center() {
     fi
     pad=$(( (w - ${#t}) / 2 ))
     (( pad < 0 )) && pad=0
-    printf '%*s%s%s%s\n' "$pad" '' "$c" "$t" "$RESET"
+    printf '\033[?7l%*s%s%s%s\033[?7h\n' "$pad" '' "$c" "$t" "$RESET"
 }
 
 rainbow_text() {
@@ -161,16 +161,16 @@ box_top() {
     fi
     fill=$(( BOXW - 3 - ${#t} ))
     (( fill < 0 )) && fill=0
-    printf '  %s╭─%s%s%s%s' "$c" "$BOLD" "$t" "$RESET" "$c"
+    printf '\033[?7l  %s╭─%s%s%s%s' "$c" "$BOLD" "$t" "$RESET" "$c"
     rep '─' "$fill"
-    printf '╮%s\n' "$RESET"
+    printf '╮%s\033[?7h\n' "$RESET"
 }
 
 box_bottom() {
     set_boxw
-    printf '  %s╰' "$1"
+    printf '\033[?7l  %s╰' "$1"
     rep '─' "$(( BOXW - 2 ))"
-    printf '╯%s\n' "$RESET"
+    printf '╯%s\033[?7h\n' "$RESET"
 }
 
 box_row() {
@@ -182,7 +182,7 @@ box_row() {
     label="${label:0:maxl}"
     pad=$(( inner - 7 - ${#label} ))
     (( pad < 0 )) && pad=0
-    printf '  %s│%s %s[%02d]%s  %s%s%s%*s%s│%s\n' \
+    printf '\033[?7l  %s│%s %s[%02d]%s  %s%s%s%*s%s│%s\033[?7h\n' \
         "$bc" "$RESET" "$c" "$n" "$RESET" "$BOLD$c" "$label" "$RESET" "$pad" '' "$bc" "$RESET"
 }
 
@@ -195,7 +195,7 @@ kv_row() {
     val="${val:0:maxv}"
     pad=$(( maxv - ${#val} ))
     (( pad < 0 )) && pad=0
-    printf '  %s│%s %s%-14s%s %s›%s %s%s%*s%s│%s\n' \
+    printf '\033[?7l  %s│%s %s%-14s%s %s›%s %s%s%*s%s│%s\033[?7h\n' \
         "$bc" "$RESET" "$BOLD$c" "$lab" "$RESET" "$DARK" "$RESET" "$WHITE" "$val" "$pad" '' "$bc" "$RESET"
 }
 
@@ -206,7 +206,7 @@ text_row() {
     t="${t:0:inner-2}"
     pad=$(( inner - 1 - ${#t} ))
     (( pad < 0 )) && pad=0
-    printf '  %s│%s %s%s%s%*s%s│%s\n' "$bc" "$RESET" "$c" "$t" "$RESET" "$pad" '' "$bc" "$RESET"
+    printf '\033[?7l  %s│%s %s%s%s%*s%s│%s\033[?7h\n' "$bc" "$RESET" "$c" "$t" "$RESET" "$pad" '' "$bc" "$RESET"
 }
 
 pause_back() {
@@ -266,19 +266,24 @@ print_big_xtatine() {
     fi
 }
 
-# Eye art with Red -> Gold/Amber premium blend for Developer page
+# Eye art with Left -> Right Red (255,55,75) to Gold/Yellow (255,215,50) blend
 print_dev_eyes() {
-    local w pad i line r g b n=${#WAVE_ART[@]}
+    local w pad i j line len r g b n=${#WAVE_ART[@]}
     w=$(term_width)
     pad=$(( (w - 53) / 2 ))
     (( pad < 0 )) && pad=0
     printf '\033[?7l'
     for ((i=0; i<n; i++)); do
         line="${WAVE_ART[i]}"
-        r=255
-        g=$(( 55 + 140 * i / (n > 1 ? n - 1 : 1) ))
-        b=$(( 75 - 20 * i / (n > 1 ? n - 1 : 1) ))
-        printf '%*s\033[1;38;2;%d;%d;%dm%s%s\n' "$pad" '' "$r" "$g" "$b" "$line" "$RESET"
+        len=${#line}
+        printf '%*s' "$pad" ''
+        for ((j=0; j<len; j++)); do
+            r=255
+            g=$(( 55 + 160 * j / (len > 1 ? len - 1 : 1) ))
+            b=$(( 75 - 25 * j / (len > 1 ? len - 1 : 1) ))
+            printf '\033[1;38;2;%d;%d;%dm%s' "$r" "$g" "$b" "${line:j:1}"
+        done
+        printf '%s\n' "$RESET"
     done
     printf '\033[?7h'
 }
@@ -332,9 +337,9 @@ center_rainbow() {
     fi
     pad=$(( (w - ${#t}) / 2 ))
     (( pad < 0 )) && pad=0
-    printf '%*s' "$pad" ''
+    printf '\033[?7l%*s' "$pad" ''
     rainbow_text "$t"
-    echo
+    printf '\033[?7h\n'
 }
 
 spaced() {
@@ -344,8 +349,19 @@ spaced() {
 }
 
 status_lines() {
-    printf "  ${GREEN}● SYSTEM ONLINE${RESET} ${DARK}│${RESET} ${YELLOW}VERSION ${ORANGE}${VERSION}${RESET} ${DARK}│${RESET} ${SKY}TERMUX / ANDROID${RESET}\n"
-    printf "  ${PINK}OPERATOR${RESET} ${DARK}›${RESET} ${PURPLE}${BOLD}${DEVELOPER}${RESET} ${DARK}│${RESET} ${TEAL}%s${RESET} ${DARK}│${RESET} ${GRAY}%s${RESET}\n" "$MODEL" "$(date '+%d %b %Y  %I:%M %p')"
+    local w l1 l2
+    w=$(term_width)
+    l1="  ● SYSTEM ONLINE │ VERSION ${VERSION} │ TERMUX / ANDROID"
+    l2="  OPERATOR › ${DEVELOPER} │ ${MODEL} │ $(date '+%d %b %Y  %I:%M %p')"
+    printf '\033[?7l'
+    if (( w >= 54 )); then
+        printf "  ${GREEN}● SYSTEM ONLINE${RESET} ${DARK}│${RESET} ${YELLOW}VERSION ${ORANGE}${VERSION}${RESET} ${DARK}│${RESET} ${SKY}TERMUX / ANDROID${RESET}\n"
+        printf "  ${PINK}OPERATOR${RESET} ${DARK}›${RESET} ${PURPLE}${BOLD}${DEVELOPER}${RESET} ${DARK}│${RESET} ${TEAL}%s${RESET} ${DARK}│${RESET} ${GRAY}%s${RESET}\n" "$MODEL" "$(date '+%d %b %Y  %I:%M %p')"
+    else
+        printf "  ${GREEN}● ONLINE${RESET} ${DARK}│${RESET} ${YELLOW}V${VERSION}${RESET} ${DARK}│${RESET} ${SKY}%s${RESET}\n" "${l1:0:w-14}"
+        printf "  ${PINK}DEV:${PURPLE}${DEVELOPER}${RESET} ${DARK}│${RESET} ${GRAY}%s${RESET}\n" "$(date '+%d %b %I:%M %p')"
+    fi
+    printf '\033[?7h'
 }
 
 header() {
@@ -649,36 +665,36 @@ globe() {
     done
 }
 
-# ---------- BIG DIGITS (SLIGHTLY WIDER/FLATTER 4-ROW + GREEN -> BLUE GRADIENT) ----------
+# ---------- BIG DIGITS (4-ROW + CORAL -> VIOLET -> SKY GRADIENT) ----------
 declare -A F
-F[0]="█████|█   █|█   █|█████"
-F[1]="  ██ | ███ |  ██ | ████"
-F[2]="█████|   ██|██   |█████"
-F[3]="█████|  ███|   ██|█████"
-F[4]="█   █|█████|    █|    █"
-F[5]="█████|██   |    █|█████"
-F[6]="█████|██   |█   █|█████"
-F[7]="█████|   ██|  ██ | ██  "
-F[8]="█████|█████|█   █|█████"
-F[9]="█████|█████|    █|█████"
+F[0]="████|█  █|█  █|████"
+F[1]=" ██ |  ██|  ██| ████"
+F[2]="████|  ██|██  |████"
+F[3]="████|  ██|  ██|████"
+F[4]="█  █|████|   █|   █"
+F[5]="████|██  |   █|████"
+F[6]="████|██  |█  █|████"
+F[7]="████|   █|  ██|  ██"
+F[8]="████|████|█  █|████"
+F[9]="████|████|   █|████"
 F[':']="  |██|██|  "
 
 BIG_CLOCK_ROWS=4
 BT_LINES=()
-CLOCK_ROW=1
-CITY_ROWS=()
+CLOCK_ROW=16
+CITY_START_ROW=24
 
 build_big_time_lines() {
     local t="$1" r i c w pad out plain
     local -a parts
-    # Top Green (0,255,110) -> Mid Cyan (0,220,235) -> Bottom Blue (55,135,255)
+    # Top-to-bottom blend: Coral Rose (255,95,145) -> Violet (185,95,255) -> Sky Cyan (85,205,255)
     local -a ROW_TINT=(
-        $'\033[1;38;2;0;255;110m'
-        $'\033[1;38;2;0;235;190m'
-        $'\033[1;38;2;20;190;245m'
-        $'\033[1;38;2;65;135;255m'
+        $'\033[1;38;2;255;95;145m'
+        $'\033[1;38;2;220;90;220m'
+        $'\033[1;38;2;145;140;255m'
+        $'\033[1;38;2;85;205;255m'
     )
-    local COLON_TINT=$'\033[1;38;2;120;245;210m'
+    local COLON_TINT=$'\033[1;38;2;255;190;110m'
     w=$(term_width)
     BT_LINES=()
     for ((r=0; r<BIG_CLOCK_ROWS; r++)); do
@@ -711,67 +727,42 @@ city_time() {
     fi
 }
 
-# Exact line counter helper so rows never drift even when lines wrap on narrow/zoomed screens
-printed_lines() {
-    local str="$1" w="$2" len=$(( ${#str} ))
-    (( w < 1 )) && w=1
-    if (( len == 0 )); then
-        echo 1
-    else
-        echo $(( (len + w - 1) / w ))
-    fi
-}
-
 draw_clock_static() {
-    local entry nm i inner maxv r cur_row w title_txt date_txt top_txt
+    local entry nm i inner maxv r
     local -a CC=("$GREEN" "$CYAN" "$YELLOW" "$PINK" "$PURPLE")
 
-    w=$(term_width)
     header
-    # header prints: 1(blank) + 6(logo) + 1(blank) + 1(line) + center_rainbow + 1(line) + status_lines(2) + 1(line) + 1(blank)
-    cur_row=15
-    title_txt="◆ LIVE WORLD TIME ◆"
-    center "$title_txt" "$CYAN$BOLD"
-    cur_row=$(( cur_row + $(printed_lines "$title_txt" "$w") ))
+    center "◆ LIVE WORLD TIME ◆" "$CYAN$BOLD"
     echo
-    cur_row=$(( cur_row + 1 ))
-
-    CLOCK_ROW=$cur_row
+    # Row 16 is right after: 1(blank)+6(logo)+1(blank)+1(line)+1(title)+1(line)+2(status)+1(line)+1(blank)+1(LIVE WORLD TIME)+1(blank) = 15 lines -> 16
+    CLOCK_ROW=16
     for ((r=0; r<BIG_CLOCK_ROWS; r++)); do
         echo
-        cur_row=$(( cur_row + 1 ))
     done
-
-    date_txt="$(date '+%p  •  %A, %d %B %Y')"
-    center "$date_txt" "$SKY"
-    cur_row=$(( cur_row + $(printed_lines "$date_txt" "$w") ))
+    center "$(date '+%p  •  %A, %d %B %Y')" "$SKY"
     echo
-    cur_row=$(( cur_row + 1 ))
-
-    top_txt="◆ GLOBAL CLOCK"
-    box_top "$CYAN" "$top_txt"
-    cur_row=$(( cur_row + $(printed_lines "  ╭─ $top_txt ─╮" "$w") ))
+    box_top "$CYAN" "◆ GLOBAL CLOCK"
+    # CITY_START_ROW is right below box_top: 16 + 4(clock) + 1(date) + 1(blank) + 1(box_top) = 23 -> 24
+    CITY_START_ROW=$(( CLOCK_ROW + BIG_CLOCK_ROWS + 3 ))
 
     set_boxw
     inner=$(( BOXW - 2 ))
     maxv=$(( inner - 18 ))
     (( maxv < 1 )) && maxv=1
-    CITY_ROWS=()
     i=0
     for entry in "${CITIES[@]}"; do
         IFS='|' read -r nm _ _ <<<"$entry"
-        CITY_ROWS[i]=$cur_row
-        printf '  %s│%s %s%-14s%s %s›%s %*s%s│%s\n' \
+        printf '\033[?7l  %s│%s %s%-14s%s %s›%s %*s%s│%s\033[?7h\n' \
             "$CYAN" "$RESET" "${BOLD}${CC[i]}" "$nm" "$RESET" "$DARK" "$RESET" "$maxv" '' "$CYAN" "$RESET"
-        cur_row=$(( cur_row + 1 ))
+        i=$(( i + 1 ))
     done
     box_bottom "$CYAN"
     echo
-    printf "  ${YELLOW}[ Q / B ]${WHITE} Back to Main Menu${RESET}\n"
+    printf '\033[?7l  %s[ Q / B ]%s Back to Main Menu%s\033[?7h\n' "$YELLOW" "$WHITE" "$RESET"
 }
 
 update_clock_values() {
-    local entry nm tz off res t hh icon i val pad inner maxv val_col r
+    local entry nm tz off res t hh icon i val pad inner maxv val_col r target_row
     set_boxw
     inner=$(( BOXW - 2 ))
     maxv=$(( inner - 18 ))
@@ -795,7 +786,8 @@ update_clock_values() {
         val="${val:0:maxv}"
         pad=$(( maxv - ${#val} ))
         (( pad < 0 )) && pad=0
-        printf '\033[%d;%dH%s%s%*s%s' "${CITY_ROWS[i]}" "$val_col" "$WHITE" "$val" "$pad" '' "$RESET"
+        target_row=$(( CITY_START_ROW + i ))
+        printf '\033[%d;%dH%s%s%*s%s' "$target_row" "$val_col" "$WHITE" "$val" "$pad" '' "$RESET"
         i=$(( i + 1 ))
     done
     printf '\033[?7h'
